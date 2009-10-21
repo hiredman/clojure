@@ -182,19 +182,7 @@ static public Object read(PushbackReader r, boolean eofIsError, Object eofValue,
 }
 
 static private String readToken(PushbackReader r, char initch) throws Exception{
-	StringBuilder sb = new StringBuilder();
-	sb.append(initch);
-
-	for(; ;)
-		{
-		int ch = r.read();
-		if(ch == -1 || isWhitespace(ch) || isTerminatingMacro(ch))
-			{
-			unread(r, ch);
-			return sb.toString();
-			}
-		sb.append((char) ch);
-		}
+    return (String) ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("READTOKEN")).deref()).invoke(r, initch);
 }
 
 static private Object readNumber(PushbackReader r, char initch) throws Exception{
@@ -366,7 +354,7 @@ static public boolean isMacro(int ch){
 	return (ch < macros.length && macros[ch] != null);
 }
 
-static private boolean isTerminatingMacro(int ch){
+static public boolean isTerminatingMacro(int ch){
 	return (ch != '#' && ch < macros.length && macros[ch] != null);
 }
 
@@ -392,6 +380,26 @@ public static class RegexReader extends AFn {
 		return Pattern.compile(sb.toString());
 	}
 }
+
+public static class ReadToken extends AFn {
+	public Object invoke(Object readerO, Object initchO) throws Exception{
+      PushbackReader r = (PushbackReader) readerO;
+      char initch = (Character)initchO;
+      StringBuilder sb = new StringBuilder();
+	  sb.append(initch);
+	  for(; ;)
+		{
+		int ch = r.read();
+		if(ch == -1 || isWhitespace(ch) || isTerminatingMacro(ch))
+			{
+			unread(r, ch);
+			return sb.toString();
+			}
+		sb.append((char) ch);
+		}
+	}
+}
+
 
 public static class StringReader1 extends AFn {
 	public Object invoke(Object reader, Object doublequote) throws Exception{

@@ -271,6 +271,8 @@ static{
 	Var.intern(CLOJURE_NS, Symbol.create("COMMENTREADER"), new clojure.lang.LispReader.CommentReader());
 	Var.intern(CLOJURE_NS, Symbol.create("QUOTEWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.QUOTE));
 	Var.intern(CLOJURE_NS, Symbol.create("DEREFWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.DEREF));
+	Var.intern(CLOJURE_NS, Symbol.create("METAWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.META));
+	Var.intern(CLOJURE_NS, Symbol.create("READTOKEN"), new clojure.lang.LispReader.ReadToken());
 	Var v;
 	v = Var.intern(CLOJURE_NS, IN_NAMESPACE, inNamespace);
 	v.setMeta(map(dockw, "Sets *ns* to the namespace named by the symbol, creating it if needed.",

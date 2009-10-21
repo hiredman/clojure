@@ -268,6 +268,7 @@ static{
 	Var nv = Var.intern(CLOJURE_NS, NAMESPACE, inNamespace);
 	nv.setMacro();
 	Var v;
+	Var.intern(CLOJURE_NS, Symbol.create("STRINGREADER"), new clojure.lang.LispReader.StringReader());
 	v = Var.intern(CLOJURE_NS, IN_NAMESPACE, inNamespace);
 	v.setMeta(map(dockw, "Sets *ns* to the namespace named by the symbol, creating it if needed.",
 	              arglistskw, list(vector(namesym))));

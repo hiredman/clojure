@@ -64,7 +64,7 @@ static Var ARG_ENV = Var.create(null);
 
     static
 	{
-	macros['"'] = new StringReader();
+	macros['"'] = new StringReader1();
 	macros[';'] = new CommentReader();
 	macros['\''] = new WrappingReader(QUOTE);
 	macros['@'] = new WrappingReader(DEREF);//new DerefReader();
@@ -370,8 +370,8 @@ static private boolean isTerminatingMacro(int ch){
 	return (ch != '#' && ch < macros.length && macros[ch] != null);
 }
 
-public static class RegexReader extends AFn{
-	static StringReader stringrdr = new StringReader();
+public static class RegexReader extends AFn {
+	static IFn stringrdr = macros['"'];
 
 	public Object invoke(Object reader, Object doublequote) throws Exception{
 		StringBuilder sb = new StringBuilder();
@@ -391,6 +391,12 @@ public static class RegexReader extends AFn{
 			}
 		return Pattern.compile(sb.toString());
 	}
+}
+
+public static class StringReader1 extends AFn {
+	public Object invoke(Object reader, Object doublequote) throws Exception{
+      return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("STRINGREADER")).deref()).invoke(reader, doublequote);
+    }
 }
 
 public static class StringReader extends AFn{

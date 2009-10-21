@@ -1204,6 +1204,7 @@ static public Object read(Object r, Object a, Object b, Object c) throws Excepti
 }
 
 static public Object readString(String s){
+  System.out.println(s);
 	PushbackReader r = new PushbackReader(new StringReader(s));
 	try {
          return read(r, true, null, false);
@@ -1688,5 +1689,15 @@ static public Object aset(Object xs, int i, Object v){
 static public int alength(Object xs){
 	return Array.getLength(xs);
 }
+
+public static class ReaderException extends Exception{
+	final int line;
+
+	public ReaderException(int line, Throwable cause){
+		super(cause);
+		this.line = line;
+	}
+}
+
 
 }

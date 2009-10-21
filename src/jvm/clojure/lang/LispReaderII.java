@@ -226,7 +226,7 @@ public static class LispReader1 extends AFn {
 			throw e;
 		LineNumberingPushbackReader rdr = (LineNumberingPushbackReader) r;
 		//throw new Exception(String.format("ReaderError:(%d,1) %s", rdr.getLineNumber(), e.getMessage()), e);
-		throw new LispReader.ReaderException(rdr.getLineNumber(), e);
+		throw new RT.ReaderException(rdr.getLineNumber(), e);
 		}
 }}
 

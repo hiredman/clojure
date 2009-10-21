@@ -114,15 +114,6 @@ static void unread(PushbackReader r, int ch) throws IOException{
 		r.unread(ch);
 }
 
-public static class ReaderException extends Exception{
-	final int line;
-
-	public ReaderException(int line, Throwable cause){
-		super(cause);
-		this.line = line;
-	}
-}
-
 
 /***************** Shells ****************************************/
 

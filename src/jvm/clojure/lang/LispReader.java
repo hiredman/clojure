@@ -65,9 +65,9 @@ static Var ARG_ENV = Var.create(null);
     static
 	{
 	macros['"'] = new StringReader1();
-	macros[';'] = new CommentReader();
-	macros['\''] = new WrappingReader(QUOTE);
-	macros['@'] = new WrappingReader(DEREF);//new DerefReader();
+	macros[';'] = new CommentReader1();
+	macros['\''] = new QuoteWrappingReader();
+	macros['@'] = new DerefWrappingReader();//new DerefReader();
 	macros['^'] = new WrappingReader(META);
 	macros['`'] = new SyntaxQuoteReader();
 	macros['~'] = new UnquoteReader();
@@ -89,7 +89,7 @@ static Var ARG_ENV = Var.create(null);
 	dispatchMacros['('] = new FnReader();
 	dispatchMacros['{'] = new SetReader();
 	dispatchMacros['='] = new EvalReader();
-	dispatchMacros['!'] = new CommentReader();
+	dispatchMacros['!'] = new CommentReader1();
 	dispatchMacros['<'] = new UnreadableReader();
 	dispatchMacros['_'] = new DiscardReader();
 	}
@@ -461,6 +461,11 @@ public static class StringReader extends AFn{
 	}
 }
 
+public static class CommentReader1 extends AFn{
+	public Object invoke(Object reader, Object semicolon) throws Exception{
+	  return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("COMMENTREADER")).deref()).invoke(reader, semicolon);
+    }
+}
 public static class CommentReader extends AFn{
 	public Object invoke(Object reader, Object semicolon) throws Exception{
 		Reader r = (Reader) reader;
@@ -479,6 +484,25 @@ public static class DiscardReader extends AFn{
 		PushbackReader r = (PushbackReader) reader;
 		read(r, true, null, true);
 		return r;
+	}
+}
+
+
+public static class QuoteWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("QUOTEWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
+	}
+}
+
+public static class DerefWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("DEREFWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
 	}
 }
 

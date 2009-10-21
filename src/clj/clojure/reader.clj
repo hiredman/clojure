@@ -48,4 +48,7 @@
       reader)))
 
 (defn QUOTEWRAPPINGREADER [reader quo]
-  (clojure.lang.RT/list quo (read reader true nil true)))
+  (clojure.lang.RT/list 'quote (read reader true nil true)))
+
+(defn DEREFWRAPPINGREADER [reader quo]
+  (clojure.lang.RT/list 'deref (read reader true nil true)))

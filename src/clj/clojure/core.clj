@@ -4371,7 +4371,7 @@
 (load "core_proxy")
 (load "core_print")
 (load "genclass")
-(load "stringreader")
+(load "reader")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; futures (needs proxy);;;;;;;;;;;;;;;;;;
 (defn future-call 

@@ -68,7 +68,7 @@ static Var ARG_ENV = Var.create(null);
 	macros[';'] = new CommentReader1();
 	macros['\''] = new QuoteWrappingReader();
 	macros['@'] = new DerefWrappingReader();//new DerefReader();
-	macros['^'] = new WrappingReader(META);
+	macros['^'] = new MetaWrappingReader();
 	macros['`'] = new SyntaxQuoteReader();
 	macros['~'] = new UnquoteReader();
 	macros['('] = new ListReader();
@@ -362,7 +362,7 @@ static private IFn getMacro(int ch){
 	return null;
 }
 
-static private boolean isMacro(int ch){
+static public boolean isMacro(int ch){
 	return (ch < macros.length && macros[ch] != null);
 }
 
@@ -506,6 +506,14 @@ public static class DerefWrappingReader extends AFn{
 	}
 }
 
+public static class MetaWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("METAWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
+	}
+}
 public static class WrappingReader extends AFn{
 	final Symbol sym;
 

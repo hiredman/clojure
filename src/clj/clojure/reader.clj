@@ -99,5 +99,9 @@
 ;;        (do (.append sb (char ch))
 ;;            (recur (int (.read reader))))))))
 
+(defn- DISCARDREADER [reader underscore]
+  (READER reader true nil true)
+  reader)
+
 (.println System/err "Reader Online")
 

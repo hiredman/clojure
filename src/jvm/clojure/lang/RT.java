@@ -256,6 +256,9 @@ static final public IFn EMPTY_GEN = new AFn(){
 };
 
 static{
+  try {
+  Class READER = Class.forName("clojure.lang.LispReader");
+  } catch (Exception e) {;}
 	Keyword dockw = Keyword.intern(null, "doc");
 	Keyword arglistskw = Keyword.intern(null, "arglists");
 	Symbol namesym = Symbol.create("name");
@@ -267,12 +270,6 @@ static{
 	//during bootstrap ns same as in-ns
 	Var nv = Var.intern(CLOJURE_NS, NAMESPACE, inNamespace);
 	nv.setMacro();
-	Var.intern(CLOJURE_NS, Symbol.create("STRINGREADER"), new clojure.lang.LispReader.StringReader());
-	Var.intern(CLOJURE_NS, Symbol.create("COMMENTREADER"), new clojure.lang.LispReader.CommentReader());
-	Var.intern(CLOJURE_NS, Symbol.create("QUOTEWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.QUOTE));
-	Var.intern(CLOJURE_NS, Symbol.create("DEREFWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.DEREF));
-	Var.intern(CLOJURE_NS, Symbol.create("METAWRAPPINGREADER"), new clojure.lang.LispReader.WrappingReader(clojure.lang.LispReader.META));
-	Var.intern(CLOJURE_NS, Symbol.create("READTOKEN"), new clojure.lang.LispReader.ReadToken());
 	Var v;
 	v = Var.intern(CLOJURE_NS, IN_NAMESPACE, inNamespace);
 	v.setMeta(map(dockw, "Sets *ns* to the namespace named by the symbol, creating it if needed.",
@@ -1202,10 +1199,14 @@ static public String printString(Object x){
 	}
 }
 
+static public Object read(Object r, Object a, Object b, Object c) throws Exception {
+  return ((IFn) CLOJURE_NS.findInternedVar(Symbol.create("READER")).deref()).invoke(r, a, b ,c);
+}
+
 static public Object readString(String s){
 	PushbackReader r = new PushbackReader(new StringReader(s));
 	try {
-		return LispReader.read(r, true, null, false);
+         return read(r, true, null, false);
 	}
 	catch(Exception e) {
 		throw new RuntimeException(e);

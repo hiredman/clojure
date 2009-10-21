@@ -64,6 +64,17 @@ static Var ARG_ENV = Var.create(null);
 
     static
 	{
+    Namespace CLOJURE_NS=Namespace.findOrCreate(Symbol.create("clojure.core"));
+    Var.intern(CLOJURE_NS, Symbol.create("STRINGREADER"), new clojure.lang.LispReaderII.StringReader());
+	Var.intern(CLOJURE_NS, Symbol.create("COMMENTREADER"), new clojure.lang.LispReaderII.CommentReader());
+	Var.intern(CLOJURE_NS, Symbol.create("QUOTEWRAPPINGREADER"), new clojure.lang.LispReaderII.WrappingReader(clojure.lang.LispReader.QUOTE));
+	Var.intern(CLOJURE_NS, Symbol.create("DEREFWRAPPINGREADER"), new clojure.lang.LispReaderII.WrappingReader(clojure.lang.LispReader.DEREF));
+	Var.intern(CLOJURE_NS, Symbol.create("METAWRAPPINGREADER"), new clojure.lang.LispReaderII.WrappingReader(clojure.lang.LispReader.META));
+	Var.intern(CLOJURE_NS, Symbol.create("READTOKEN"), new clojure.lang.LispReaderII.ReadToken());
+	Var.intern(CLOJURE_NS, Symbol.create("READER"), new clojure.lang.LispReaderII.LispReader1());
+	Var.intern(CLOJURE_NS, Symbol.create("DISCARDREADER"), new clojure.lang.LispReaderII.DiscardReader());
+	Var.intern(CLOJURE_NS, Symbol.create("REGEXREADER"), new clojure.lang.LispReaderII.RegexReader());
+
 	macros['"'] = new StringReader1();
 	macros[';'] = new CommentReader1();
 	macros['\''] = new QuoteWrappingReader();
@@ -85,13 +96,13 @@ static Var ARG_ENV = Var.create(null);
 
 	dispatchMacros['^'] = new MetaReader();
 	dispatchMacros['\''] = new VarReader();
-	dispatchMacros['"'] = new RegexReader();
+	dispatchMacros['"'] = new RegexReader1();
 	dispatchMacros['('] = new FnReader();
 	dispatchMacros['{'] = new SetReader();
 	dispatchMacros['='] = new EvalReader();
 	dispatchMacros['!'] = new CommentReader1();
 	dispatchMacros['<'] = new UnreadableReader();
-	dispatchMacros['_'] = new DiscardReader();
+	dispatchMacros['_'] = new DiscardReader1();
 	}
 
 static boolean isWhitespace(int ch){
@@ -112,80 +123,75 @@ public static class ReaderException extends Exception{
 	}
 }
 
+
+/***************** Shells ****************************************/
+
 static public Object read(PushbackReader r, boolean eofIsError, Object eofValue, boolean isRecursive)
 		throws Exception{
-
-	try
-		{
-		for(; ;)
-			{
-			int ch = r.read();
-
-			while(isWhitespace(ch))
-				ch = r.read();
-
-			if(ch == -1)
-				{
-				if(eofIsError)
-					throw new Exception("EOF while reading");
-				return eofValue;
-				}
-
-			if(Character.isDigit(ch))
-				{
-				Object n = readNumber(r, (char) ch);
-				if(RT.suppressRead())
-					return null;
-				return n;
-				}
-
-			IFn macroFn = getMacro(ch);
-			if(macroFn != null)
-				{
-				Object ret = macroFn.invoke(r, (char) ch);
-				if(RT.suppressRead())
-					return null;
-				//no op macros return the reader
-				if(ret == r)
-					continue;
-				return ret;
-				}
-
-			if(ch == '+' || ch == '-')
-				{
-				int ch2 = r.read();
-				if(Character.isDigit(ch2))
-					{
-					unread(r, ch2);
-					Object n = readNumber(r, (char) ch);
-					if(RT.suppressRead())
-						return null;
-					return n;
-					}
-				unread(r, ch2);
-				}
-
-			String token = readToken(r, (char) ch);
-			if(RT.suppressRead())
-				return null;
-			return interpretToken(token);
-			}
-		}
-	catch(Exception e)
-		{
-		if(isRecursive || !(r instanceof LineNumberingPushbackReader))
-			throw e;
-		LineNumberingPushbackReader rdr = (LineNumberingPushbackReader) r;
-		//throw new Exception(String.format("ReaderError:(%d,1) %s", rdr.getLineNumber(), e.getMessage()), e);
-		throw new ReaderException(rdr.getLineNumber(), e);
-		}
+   return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("READER")).deref()).invoke(r, eofIsError, eofValue, isRecursive);
 }
 
-static private String readToken(PushbackReader r, char initch) throws Exception{
+static public String readToken(PushbackReader r, char initch) throws Exception{
     return (String) ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("READTOKEN")).deref()).invoke(r, initch);
 }
 
-static private Object readNumber(PushbackReader r, char initch) throws Exception{
+public static class StringReader1 extends AFn {
+	public Object invoke(Object reader, Object doublequote) throws Exception{
+      return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("STRINGREADER")).deref()).invoke(reader, doublequote);
+    }
+}
+
+public static class CommentReader1 extends AFn{
+	public Object invoke(Object reader, Object semicolon) throws Exception{
+	  return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("COMMENTREADER")).deref()).invoke(reader, semicolon);
+    }
+}
+
+public static class DiscardReader1 extends AFn{
+	public Object invoke(Object reader, Object underscore) throws Exception {
+	  return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("DISCARDREADER")).deref()).invoke(reader, underscore);
+   	}
+}
+
+public static class QuoteWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("QUOTEWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
+	}
+}
+
+public static class DerefWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("DEREFWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
+	}
+}
+
+public static class MetaWrappingReader extends AFn{
+	public Object invoke(Object reader, Object quote) throws Exception{
+      return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("METAWRAPPINGREADER")).
+          deref()).invoke(reader, quote);
+	}
+}
+
+public static class RegexReader1 extends AFn {
+	public Object invoke(Object reader, Object doublequote) throws Exception{
+	  return ((IFn) Namespace.
+          findOrCreate(Symbol.create("clojure.core")).
+          findInternedVar(Symbol.create("REGEXREADER")).
+          deref()).invoke(reader, doublequote);
+	}
+}
+
+/***********************************************************************/
+
+static public Object readNumber(PushbackReader r, char initch) throws Exception{
 	StringBuilder sb = new StringBuilder();
 	sb.append(initch);
 
@@ -221,30 +227,8 @@ static private int readUnicodeChar(String token, int offset, int length, int bas
 	return (char) uc;
 }
 
-static private int readUnicodeChar(PushbackReader r, int initch, int base, int length, boolean exact) throws Exception{
-	int uc = Character.digit(initch, base);
-	if(uc == -1)
-		throw new IllegalArgumentException("Invalid digit: " + initch);
-	int i = 1;
-	for(; i < length; ++i)
-		{
-		int ch = r.read();
-		if(ch == -1 || isWhitespace(ch) || isMacro(ch))
-			{
-			unread(r, ch);
-			break;
-			}
-		int d = Character.digit(ch, base);
-		if(d == -1)
-			throw new IllegalArgumentException("Invalid digit: " + (char) ch);
-		uc = uc * base + d;
-		}
-	if(i != length && exact)
-		throw new IllegalArgumentException("Invalid character length: " + i + ", should be: " + length);
-	return uc;
-}
 
-static private Object interpretToken(String s) throws Exception{
+static public Object interpretToken(String s) throws Exception{
 	if(s.equals("nil"))
 		{
 		return null;
@@ -344,7 +328,7 @@ private static Object matchNumber(String s){
 	return null;
 }
 
-static private IFn getMacro(int ch){
+static public IFn getMacro(int ch){
 	if(ch < macros.length)
 		return macros[ch];
 	return null;
@@ -358,184 +342,9 @@ static public boolean isTerminatingMacro(int ch){
 	return (ch != '#' && ch < macros.length && macros[ch] != null);
 }
 
-public static class RegexReader extends AFn {
-	static IFn stringrdr = macros['"'];
-
-	public Object invoke(Object reader, Object doublequote) throws Exception{
-		StringBuilder sb = new StringBuilder();
-		Reader r = (Reader) reader;
-		for(int ch = r.read(); ch != '"'; ch = r.read())
-			{
-			if(ch == -1)
-				throw new Exception("EOF while reading regex");
-			sb.append( (char) ch );
-			if(ch == '\\')	//escape
-				{
-				ch = r.read();
-				if(ch == -1)
-					throw new Exception("EOF while reading regex");
-				sb.append( (char) ch ) ;
-				}
-			}
-		return Pattern.compile(sb.toString());
-	}
-}
-
-public static class ReadToken extends AFn {
-	public Object invoke(Object readerO, Object initchO) throws Exception{
-      PushbackReader r = (PushbackReader) readerO;
-      char initch = (Character)initchO;
-      StringBuilder sb = new StringBuilder();
-	  sb.append(initch);
-	  for(; ;)
-		{
-		int ch = r.read();
-		if(ch == -1 || isWhitespace(ch) || isTerminatingMacro(ch))
-			{
-			unread(r, ch);
-			return sb.toString();
-			}
-		sb.append((char) ch);
-		}
-	}
-}
 
 
-public static class StringReader1 extends AFn {
-	public Object invoke(Object reader, Object doublequote) throws Exception{
-      return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("STRINGREADER")).deref()).invoke(reader, doublequote);
-    }
-}
 
-public static class StringReader extends AFn{
-	public Object invoke(Object reader, Object doublequote) throws Exception{
-		StringBuilder sb = new StringBuilder();
-		Reader r = (Reader) reader;
-
-		for(int ch = r.read(); ch != '"'; ch = r.read())
-			{
-			if(ch == -1)
-				throw new Exception("EOF while reading string");
-			if(ch == '\\')	//escape
-				{
-				ch = r.read();
-				if(ch == -1)
-					throw new Exception("EOF while reading string");
-				switch(ch)
-					{
-					case 't':
-						ch = '\t';
-						break;
-					case 'r':
-						ch = '\r';
-						break;
-					case 'n':
-						ch = '\n';
-						break;
-					case '\\':
-						break;
-					case '"':
-						break;
-					case 'b':
-						ch = '\b';
-						break;
-					case 'f':
-						ch = '\f';
-						break;
-					case 'u':
-					{
-					ch = r.read();
-					if (Character.digit(ch, 16) == -1)
-					    throw new Exception("Invalid unicode escape: \\u" + (char) ch);
-					ch = readUnicodeChar((PushbackReader) r, ch, 16, 4, true);
-					break;
-					}
-					default:
-					{
-					if(Character.isDigit(ch))
-						{
-						ch = readUnicodeChar((PushbackReader) r, ch, 8, 3, false);
-						if(ch > 0377)
-							throw new Exception("Octal escape sequence must be in range [0, 377].");
-						}
-					else
-						throw new Exception("Unsupported escape character: \\" + (char) ch);
-					}
-					}
-				}
-			sb.append((char) ch);
-			}
-		return sb.toString();
-	}
-}
-
-public static class CommentReader1 extends AFn{
-	public Object invoke(Object reader, Object semicolon) throws Exception{
-	  return ((IFn) Namespace.findOrCreate(Symbol.create("clojure.core")).findInternedVar(Symbol.create("COMMENTREADER")).deref()).invoke(reader, semicolon);
-    }
-}
-public static class CommentReader extends AFn{
-	public Object invoke(Object reader, Object semicolon) throws Exception{
-		Reader r = (Reader) reader;
-		int ch;
-		do
-			{
-			ch = r.read();
-			} while(ch != -1 && ch != '\n' && ch != '\r');
-		return r;
-	}
-
-}
-
-public static class DiscardReader extends AFn{
-	public Object invoke(Object reader, Object underscore) throws Exception{
-		PushbackReader r = (PushbackReader) reader;
-		read(r, true, null, true);
-		return r;
-	}
-}
-
-
-public static class QuoteWrappingReader extends AFn{
-	public Object invoke(Object reader, Object quote) throws Exception{
-      return ((IFn) Namespace.
-          findOrCreate(Symbol.create("clojure.core")).
-          findInternedVar(Symbol.create("QUOTEWRAPPINGREADER")).
-          deref()).invoke(reader, quote);
-	}
-}
-
-public static class DerefWrappingReader extends AFn{
-	public Object invoke(Object reader, Object quote) throws Exception{
-      return ((IFn) Namespace.
-          findOrCreate(Symbol.create("clojure.core")).
-          findInternedVar(Symbol.create("DEREFWRAPPINGREADER")).
-          deref()).invoke(reader, quote);
-	}
-}
-
-public static class MetaWrappingReader extends AFn{
-	public Object invoke(Object reader, Object quote) throws Exception{
-      return ((IFn) Namespace.
-          findOrCreate(Symbol.create("clojure.core")).
-          findInternedVar(Symbol.create("METAWRAPPINGREADER")).
-          deref()).invoke(reader, quote);
-	}
-}
-public static class WrappingReader extends AFn{
-	final Symbol sym;
-
-	public WrappingReader(Symbol sym){
-		this.sym = sym;
-	}
-
-	public Object invoke(Object reader, Object quote) throws Exception{
-		PushbackReader r = (PushbackReader) reader;
-		Object o = read(r, true, null, true);
-		return RT.list(sym, o);
-	}
-
-}
 
 public static class VarReader extends AFn{
 	public Object invoke(Object reader, Object quote) throws Exception{

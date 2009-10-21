@@ -4946,8 +4946,8 @@ public static Object load(Reader rdr, String sourcePath, String sourceName) thro
 
 	try
 		{
-		for(Object r = LispReader.read(pushbackReader, false, EOF, false); r != EOF;
-		    r = LispReader.read(pushbackReader, false, EOF, false))
+		for(Object r = RT.read(pushbackReader, false, EOF, false); r != EOF;
+		    r = RT.read(pushbackReader, false, EOF, false))
 			{
 			LINE_AFTER.set(pushbackReader.getLineNumber());
 			ret = eval(r);
@@ -5069,8 +5069,8 @@ public static Object compile(Reader rdr, String sourcePath, String sourceName) t
 		                                            cv);
 		gen.visitCode();
 
-		for(Object r = LispReader.read(pushbackReader, false, EOF, false); r != EOF;
-		    r = LispReader.read(pushbackReader, false, EOF, false))
+		for(Object r = RT.read(pushbackReader, false, EOF, false); r != EOF;
+		    r = RT.read(pushbackReader, false, EOF, false))
 			{
 				LINE_AFTER.set(pushbackReader.getLineNumber());
 				compile1(gen, fn, r);

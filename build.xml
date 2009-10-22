@@ -85,12 +85,12 @@
   <target name="compile-clojure" depends="compile-java"
           description="Compile Clojure sources.">
     <java classname="clojure.lang.Compile"
-          classpath="${build}:${cljsrc}"
+          classpath="${build}:${cljsrc}:reader.jar"
           failonerror="true">
       <sysproperty key="clojure.compile.path" value="${build}"/>
+      <sysproperty key="reader.name" value="${reader.name}"/>
       <!-- <sysproperty key="clojure.compile.warn-on-reflection" value="true"/> -->
       <arg value="clojure.core"/>
-      <arg value="clojure.reader"/>
       <arg value="clojure.main"/>
       <arg value="clojure.set"/>
       <arg value="clojure.xml"/>
@@ -102,6 +102,21 @@
       <arg value="clojure.test"/>
       <arg value="clojure.test.tap"/>
     </java>
+    <antcall target="compile-reader"/>
+  </target>
+
+  <target name="compile-reader" depends=""
+          description="Compile Clojure sources.">
+    <mkdir dir="reader" />
+    <java classname="clojure.lang.Compile"
+      classpath="${build}:${cljsrc}:reader.jar:reader/"
+          failonerror="true">
+          <sysproperty key="clojure.compile.path" value="reader/"/>
+      <sysproperty key="reader.name" value="${reader.name}"/>
+      <arg value="clojure.reader"/>
+    </java>
+    <jar jarfile="reader.jar" basedir="reader/" />
+    <delete dir="reader" />
   </target>
 
   <target name="clojure" depends="compile-clojure"

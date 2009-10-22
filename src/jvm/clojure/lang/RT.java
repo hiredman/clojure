@@ -451,6 +451,10 @@ static public int nextID(){
 	return id.getAndIncrement();
 }
 
+static public Object read (Object one, Object two, Object three, Object four) throws Exception {
+  return ((IFn) CLOJURE_NS.findInternedVar(Symbol.create("READER")).deref()).invoke(one, two, three, four);
+}
+
 
 ////////////// Collections support /////////////////////////////////
 
@@ -1220,7 +1224,7 @@ static public String printString(Object x){
 static public Object readString(String s){
 	PushbackReader r = new PushbackReader(new StringReader(s));
 	try {
-		return LispReader.read(r, true, null, false);
+		return read(r, true, null, false);
 	}
 	catch(Exception e) {
 		throw new RuntimeException(e);

@@ -470,6 +470,7 @@ public static class CommentReader extends AFn{
 
 public static class LispReaderFn extends AFn{
 	public Object invoke(Object readerO, Object eofIsErrorO, Object eofValue, Object recurO) throws Exception{
+      System.err.println("LispReader called.");
       PushbackReader reader = (PushbackReader) readerO;
       boolean eofIsError = (Boolean) eofIsErrorO;
       boolean recur = (Boolean) recurO;

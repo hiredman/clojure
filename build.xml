@@ -88,7 +88,6 @@
           classpath="${build}:${cljsrc}:reader.jar"
           failonerror="true">
       <sysproperty key="clojure.compile.path" value="${build}"/>
-      <sysproperty key="reader.name" value="${reader.name}"/>
       <!-- <sysproperty key="}"ojure.compile.warn-on-reflection" value="true"/> -->
       <arg value="clojure.core"/>
       <arg value="clojure.main"/>
@@ -108,10 +107,10 @@
   <target name="compile-clojure1" depends="create-clojure-dir"
           description="Compile Clojure sources.">
     <java classname="clojure.lang.Compile"
-      classpath="${clojure-build}:${cljsrc}:${reader.jar}:${java-build}"
+          classpathref="classpath"
+          fork="true"
           failonerror="true">
       <sysproperty key="clojure.compile.path" value="${clojure-build}"/>
-      <sysproperty key="reader.name" value="${reader.name}"/>
       <arg value="clojure.core"/>
       <arg value="clojure.main"/>
       <arg value="clojure.set"/>
@@ -125,6 +124,15 @@
       <arg value="clojure.test.tap"/>
     </java>
   </target>
+
+  <target name="compile-reader" depends="create-reader-dir">
+    <java classname="clojure.lang.Compile" failonerror="true"
+      classpathref="classpath">
+      <sysproperty key="clojure.compile.path" value="${reader-build}"/>
+      <arg value="clojure.reader"/>
+    </java>
+  </target>
+
 
   <target name="compile-java1" depends="create-java-dir"
           description="Compile Java sources.">
@@ -140,14 +148,20 @@
     <mkdir dir="${clojure-build}"/>
   </target>
 
-  <target name="create-create-dir">
+  <target name="create-reader-dir">
     <mkdir dir="${reader-build}"/>
   </target>
 
   <property name="clojure-build" location="classes"/>
   <property name="java-build" location="java-classes"/>
-  <property name="reader-build" location="reader"/>
+  <property name="reader-build" location="reader/"/>
   <property name="reader.jar" location="reader.jar"/>
+  <path id="classpath">
+    <pathelement location="${clojure-build}"/>
+    <pathelement location="${java-build}"/>
+    <pathelement location="${reader-build}"/>
+    <pathelement location="${cljsrc}"/>
+  </path>
 
   <target name="build-stage-000" depends=""
     description="">
@@ -167,20 +181,26 @@
   	<chmod file="pom.xml" perm="ugo-w"/>
   </target>
 
-
   <target name="build-stage-100" depends="build-stage-001">
     <antcall target="compile-java1" />
     <antcall target="compile-clojure1" />
   </target>
 
-  <target name="build-stage-200" depends="build-stage-100">
+  <target name="build-stage-101" depends="build-stage-100">
+    <antcall target="compile-reader" />
+  </target>
+
+  <target name="build-stage-200" depends="build-stage-101">
     <delete dir="${clojure-build}"/>
     <antcall target="compile-clojure1" />
   </target>
 
   <target name="build-jar" depends="build-stage-200">
-    <jar jarfile="${clojure_jar}" basedir="${clojure-build}">
+    <jar jarfile="clojure.jar" basedir="${clojure-build}">
       <fileset dir="${java-build}">
+        <include name="**/*"/>
+      </fileset>
+      <fileset dir="${reader-build}">
         <include name="**/*"/>
       </fileset>
       <fileset dir="${cljsrc}">

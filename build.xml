@@ -161,6 +161,7 @@
     <pathelement location="${java-build}"/>
     <pathelement location="${reader-build}"/>
     <pathelement location="${cljsrc}"/>
+    <pathelement location="test/"/>
   </path>
 
   <target name="build-stage-000" depends=""
@@ -233,11 +234,7 @@
   <target name="test"
           description="Run clojure tests">
 <!--           depends="clojure"> -->
-    <java classname="clojure.main" failonerror="true">
-      <classpath>
-        <path location="${test}"/>
-        <path location="${clojure_jar}"/>
-      </classpath>
+    <java classname="clojure.main" failonerror="true" classpathref="classpath">
       <arg value="-e"/>
       <arg value="(require '(clojure [test-clojure :as main])) (main/run-ant)"/>
     </java>

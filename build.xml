@@ -102,13 +102,10 @@
       <arg value="clojure.test"/>
       <arg value="clojure.test.tap"/>
     </java>
-    <available file="reader.jar" property="reader.jar.present"/>
-    <antcall target="compile-reader"/>
   </target>
 
   <target name="compile-reader" depends=""
-    description="Compile Clojure sources."
-    if="${reader.jar.present}">
+    description="Compile Clojure sources.">
     <mkdir dir="reader" />
     <java classname="clojure.lang.Compile"
       classpath="${build}:${cljsrc}:reader.jar:reader/"

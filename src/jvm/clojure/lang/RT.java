@@ -261,7 +261,9 @@ static{
   IFn reader = null;
 
   try {
-    String f = System.getProperty("reader.name");
+    java.util.Properties p = new java.util.Properties();
+    p.load(RT.class.getResourceAsStream("/reader.properties"));
+    String f = p.getProperty("reader.name");
     readerClass = classForName(f);}
   catch (Exception e) {
     try {

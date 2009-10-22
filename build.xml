@@ -89,7 +89,7 @@
           failonerror="true">
       <sysproperty key="clojure.compile.path" value="${build}"/>
       <sysproperty key="reader.name" value="${reader.name}"/>
-      <!-- <sysproperty key="clojure.compile.warn-on-reflection" value="true"/> -->
+      <!-- <sysproperty key="}"ojure.compile.warn-on-reflection" value="true"/> -->
       <arg value="clojure.core"/>
       <arg value="clojure.main"/>
       <arg value="clojure.set"/>
@@ -102,25 +102,82 @@
       <arg value="clojure.test"/>
       <arg value="clojure.test.tap"/>
     </java>
-    <available file="reader.jar" property="reader.jar.present"/>
-    <antcall target="compile-reader"/>
   </target>
 
-  <target name="compile-reader" depends=""
-    description="Compile Clojure sources."
-    if="${reader.jar.present}">
-    <mkdir dir="reader" />
+  <!-- -->
+  <target name="compile-reader" depends="create-create-dir"
+    description="Compile Clojure sources." >
     <java classname="clojure.lang.Compile"
-      classpath="${build}:${cljsrc}:reader.jar:reader/"
+      classpath="${clojure-build}:${java-build}:${reader.jar}:reader/"
           failonerror="true">
           <sysproperty key="clojure.compile.path" value="reader/"/>
-      <sysproperty key="reader.name" value="${reader.name}"/>
       <arg value="clojure.reader"/>
     </java>
-    <jar jarfile="reader.jar" basedir="reader/" />
-    <delete dir="reader" />
   </target>
 
+  <target name="compile-clojure1" depends="create-clojure-dir"
+          description="Compile Clojure sources.">
+    <java classname="clojure.lang.Compile"
+      classpath="${clojure-build}:${cljsrc}:${reader.jar}:${java-build}"
+          failonerror="true">
+      <sysproperty key="clojure.compile.path" value="${clojure-build}"/>
+      <sysproperty key="reader.name" value="${reader.name}"/>
+      <arg value="clojure.core"/>
+      <arg value="clojure.main"/>
+      <arg value="clojure.set"/>
+      <arg value="clojure.xml"/>
+      <arg value="clojure.zip"/>
+      <arg value="clojure.inspector"/>
+      <arg value="clojure.walk"/>
+      <arg value="clojure.stacktrace"/>
+      <arg value="clojure.template"/>
+      <arg value="clojure.test"/>
+      <arg value="clojure.test.tap"/>
+    </java>
+  </target>
+
+  <target name="compile-java1" depends="create-java-dir"
+          description="Compile Java sources.">
+    <javac srcdir="${jsrc}" destdir="${java-build}" includeJavaRuntime="yes"
+           debug="true" target="1.5"/>
+  </target>
+
+  <target name="create-java-dir">
+    <mkdir dir="${java-build}"/>
+  </target>
+
+  <target name="create-clojure-dir">
+    <mkdir dir="${clojure-build}"/>
+  </target>
+
+  <target name="create-create-dir">
+    <mkdir dir="${reader-build}"/>
+  </target>
+
+  <property name="clojure-build" location="classes"/>
+  <property name="java-build" location="java-classes"/>
+  <property name="reader-build" location="reader"/>
+  <property name="reader.jar" location="reader.jar"/>
+
+  <target name="build-stage-0" depends=""
+    description="">
+    <delete dir="${clojure-build}"/>
+    <delete dir="${java-build}"/>
+    <delete dir="${reader-build}"/>
+    <delete dir="${reader.jar}"/>
+  </target>
+
+  <target name="build-stage-1" depends="build-stage-0">
+    <antcall target="compile-java1" />
+    <antcall target="compile-clojure1" />
+    <antcall target="compile-reader" />
+  </target>
+
+  <target name="build-stage-2" depends="build-stage-1">
+    <antcall target="compile-clojure1" />
+  </target>
+
+  <!-- -->
   <target name="clojure" depends="compile-clojure"
           description="Create clojure jar file.">
     <jar jarfile="${clojure_jar}" basedir="${build}">

@@ -28,17 +28,19 @@
                                    n)))
                              (do (.append sb (clojure.core/char ch))
                                (recur (.read rdr)))))))
+          ;;(read-token [rdr initch]
+          ;;            (clojure.core/let [sb (StringBuilder.)]
+          ;;              (.append sb (clojure.core/char initch))
+          ;;              (clojure.core/loop [ch (.read rdr)]
+          ;;                (if (clojure.core/or (= (clojure.core/int ch) -1)
+          ;;                        (whitespace? ch)
+          ;;                        (terminating-macro? ch))
+          ;;                  (do (.unread rdr ch)
+          ;;                    (.toString sb))
+          ;;                  (do (.append sb (clojure.core/char ch))
+          ;;                    (recur (.read rdr)))))))
           (read-token [rdr initch]
-                      (clojure.core/let [sb (StringBuilder.)]
-                        (.append sb (clojure.core/char initch))
-                        (clojure.core/loop [ch (.read rdr)]
-                          (if (clojure.core/or (= (clojure.core/int ch) -1)
-                                  (whitespace? ch)
-                                  (terminating-macro? ch))
-                            (do (.unread rdr ch)
-                              (.toString sb))
-                            (do (.append sb (clojure.core/char ch))
-                              (recur (.read rdr)))))))
+                      (clojure.lang.LispReader/readToken rdr initch))
           (readunicodechar-pushback-rdr [rdr initch base length exact]
                                         (clojure.core/let [uc (Character/digit initch base)]
                                           (clojure.core/when (= -1 uc)

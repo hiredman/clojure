@@ -94,7 +94,7 @@ static Var ARG_ENV = Var.create(null);
 	dispatchMacros['_'] = new DiscardReader();
 	}
 
-static boolean isWhitespace(int ch){
+public static boolean isWhitespace(int ch){
 	return Character.isWhitespace(ch) || ch == ',';
 }
 

@@ -267,7 +267,6 @@ static{
     readerClass = classForName(f);}
   catch (Exception e) {
     try {
-        System.err.println(e.toString());
         System.err.println("Falling back to java reader.");
         readerClass = classForName("clojure.lang.LispReader$LispReaderFn");}
       catch (Exception e1) {

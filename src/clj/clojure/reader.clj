@@ -1,8 +1,7 @@
-(defn refer [x])
 (ns clojure.reader)
 
-(clojure.core/defn- readI [rdr eof-is-error? eof-value recursive?]
-  (clojure.core/letfn [(whitespace? [ch] (clojure.core/or (Character/isWhitespace ch) (= \, (clojure.core/char ch))))
+(defn- readI [rdr eof-is-error? eof-value recursive?]
+  (letfn [(whitespace? [ch] (clojure.core/or (Character/isWhitespace ch) (= \, (char ch))))
           (= [x y] (clojure.lang.Util/equiv x y))
           (name [x] (.getName x))
           (count [x] (clojure.lang.RT/count x))
@@ -14,32 +13,21 @@
           (+ [x y] (. clojure.lang.Numbers (add x y)))
           (nil? [x] (if (= x nil) true false))
           (read-number [rdr initch]
-                       (clojure.core/let [sb (StringBuilder.)]
+                       (let [sb (StringBuilder.)]
                          (.append sb (clojure.core/char initch))
-                         (clojure.core/loop [ch (.read rdr)]
+                         (loop [ch (.read rdr)]
                            (if (clojure.core/or (= (clojure.core/int ch) -1)
                                    (whitespace? ch)
                                    (macro? ch))
                              (do (.unread rdr ch)
-                               (clojure.core/let [s (.toString sb)
+                               (let [s (.toString sb)
                                      n (clojure.lang.LispReader/matchNumber s)]
                                  (if (nil? n)
                                    (throw (NumberFormatException. (.concat "Invalid number: " s)))
                                    n)))
                              (do (.append sb (clojure.core/char ch))
                                (recur (.read rdr)))))))
-          ;;(read-token [rdr initch]
-          ;;            (clojure.core/let [sb (StringBuilder.)]
-          ;;              (.append sb (clojure.core/char initch))
-          ;;              (clojure.core/loop [ch (.read rdr)]
-          ;;                (if (clojure.core/or (= (clojure.core/int ch) -1)
-          ;;                        (whitespace? ch)
-          ;;                        (terminating-macro? ch))
-          ;;                  (do (.unread rdr ch)
-          ;;                    (.toString sb))
-          ;;                  (do (.append sb (clojure.core/char ch))
-          ;;                    (recur (.read rdr)))))))
-          (read-token [rdr initch]
+               (read-token [rdr initch]
                       (clojure.lang.LispReader/readToken rdr initch))
           (readunicodechar-pushback-rdr [rdr initch base length exact]
                                         (clojure.core/let [uc (Character/digit initch base)]
@@ -108,11 +96,10 @@
                                s)))))
           (get-macro [ch]
                   (clojure.core/condp = (clojure.core/char ch)
-                    \" string-reader
                     \; (clojure.lang.LispReader$CommentReader.)
-                    \' (clojure.lang.LispReader$WrappingReader 'clojure.core/quote)
-                    \@ (clojure.lang.LispReader$WrappingReader 'clojure.core/deref)
-                    \^ (clojure.lang.LispReader$WrappingReader 'clojure.core/meta)
+                    \' (clojure.lang.LispReader$WrappingReader. 'clojure.core/quote)
+                    \@ (clojure.lang.LispReader$WrappingReader. 'clojure.core/deref)
+                    \^ (clojure.lang.LispReader$WrappingReader. 'clojure.core/meta)
                     \` (clojure.lang.LispReader$SyntaxQuoteReader.)
                     \( list-reader
                     (clojure.core/let [macs (wall-hack clojure.lang.LispReader :macros nil)
@@ -128,45 +115,57 @@
             (clojure.core/-> class-name (.getDeclaredField (name field-name))
               (clojure.core/doto (.setAccessible true))
                     (.get obj)))
-          (read [rdr eof-is-error? eof-value recursive?]
+          (p [x] (.println System/err (.toString x)))
+          (suppressed-read? [] (clojure.lang.RT/suppressRead))
+          (read [rdr eof-error? eof-value recursive?]
                 (try
-                  (clojure.core/loop [ch (.read rdr)]
+                  (loop [ch (.read rdr)]
                     (if (whitespace? ch)
                       (recur (.read rdr))
-                      (if (= (clojure.core/int ch) -1)
-                        (if eof-is-error?
+                      (if (= -1 (int ch))
+                        (if eof-error?
                           (throw (Exception. "EOF while reading"))
                           eof-value)
                         (if (Character/isDigit ch)
-                          (clojure.core/let [n (clojure.lang.LispReader/readNumber rdr (clojure.core/char ch))]
-                            (if (clojure.lang.RT/suppressRead)
+                          (let [n (read-number rdr (char ch))]
+                            (if (suppressed-read?)
                               nil
                               n))
-                          (clojure.core/let [macro-fn (get-macro ch)]
+                          (let [macro-fn (get-macro (int ch))]
                             (if (not (nil? macro-fn))
-                              (clojure.core/let [ret (macro-fn rdr (clojure.core/char ch))]
-                                (if (= rdr ret)
-                                  (recur (.read rdr))
-                                  ret))
-                              (if (clojure.core/or (= \+ (clojure.core/char ch)) (= \- (clojure.core/char ch)))
-                                (clojure.core/let [ch2 (.read rdr)]
+                              (let [ret (macro-fn rdr (char ch))]
+                                (if (suppressed-read?)
+                                  nil
+                                  (if (= ret rdr)
+                                    (recur (.read rdr))
+                                    ret)))
+                              (if (or (= (char ch) \+)
+                                      (= (char ch) \-))
+                                (let [ch2 (.read rdr)]
                                   (if (Character/isDigit ch2)
                                     (do (.unread rdr ch2)
-                                      (clojure.core/let [n (read-number rdr (clojure.core/char ch))]
-                                        (if (clojure.lang.RT/suppressRead)
+                                      (let [n (clojure.lang.LispReader/readNumber rdr (char ch))]
+                                        (if (suppressed-read?)
                                           nil
                                           n)))
                                     (do (.unread rdr ch2)
-                                      (clojure.core/let [token (read-token rdr (clojure.core/char ch))]
-                                        (if (clojure.lang.RT/suppressRead)
-                                          nil
-                                          (clojure.lang.LispReader/interpretToken token)))))))))))))
+                                      (read-token-sub rdr ch))))
+                                (read-token-sub rdr ch))))))))
                   (catch Exception e
-                    (clojure.core/when (clojure.core/or recursive?
-                              (not (instance? clojure.lang.LineNumberingPushbackReader rdr)))
-                      (throw e))
-                    (clojure.lang.LispReader$ReaderException. (.getLineNumber rdr) e))))]
+                    (if (or recursive?
+                            (not (instance? clojure.lang.LineNumberingPushbackReader rdr)))
+                      (throw e)
+                      (throw (clojure.lang.LispReader$ReaderException. (.getLineNumber rdr) e))))))
+          (read-token-sub [rdr ch]
+                          (let [token (read-token rdr (char ch))]
+                            (if (suppressed-read?)
+                              nil
+                              (clojure.lang.LispReader/interpretToken token))))]
   (.println System/err "Clojure Reader Called.")
   (read rdr eof-is-error? eof-value recursive?)))
 
-(.println System/err (.concat "Reader class: " (.getName (clojure.core/class readI))))
+(when *compile-files*
+(with-open [file (-> "reader/reader.properties" java.io.File.
+                   java.io.FileWriter. java.io.PrintWriter.)]
+  (binding [*out* file]
+    (.println *out* (str "reader.name=" (.getName (class readI)))))))

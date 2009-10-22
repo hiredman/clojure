@@ -105,16 +105,6 @@
   </target>
 
   <!-- -->
-  <target name="compile-reader" depends="create-create-dir"
-    description="Compile Clojure sources." >
-    <java classname="clojure.lang.Compile"
-      classpath="${clojure-build}:${java-build}:${reader.jar}:reader/"
-          failonerror="true">
-          <sysproperty key="clojure.compile.path" value="reader/"/>
-      <arg value="clojure.reader"/>
-    </java>
-  </target>
-
   <target name="compile-clojure1" depends="create-clojure-dir"
           description="Compile Clojure sources.">
     <java classname="clojure.lang.Compile"
@@ -159,23 +149,50 @@
   <property name="reader-build" location="reader"/>
   <property name="reader.jar" location="reader.jar"/>
 
-  <target name="build-stage-0" depends=""
+  <target name="build-stage-000" depends=""
     description="">
     <delete dir="${clojure-build}"/>
     <delete dir="${java-build}"/>
     <delete dir="${reader-build}"/>
-    <delete dir="${reader.jar}"/>
+    <delete file="*.jar"/>
   </target>
 
-  <target name="build-stage-1" depends="build-stage-0">
+  <target name="build-stage-001" depends="build-stage-000" >
+    <copy file="pom-template.xml" 
+          tofile="pom.xml">
+    	<filterset refid="clojure-version-filterset"/>
+    </copy>
+  	<!--prevents users from modifying accidentally the generated pom.xml
+  	    works only on linux.-->
+  	<chmod file="pom.xml" perm="ugo-w"/>
+  </target>
+
+
+  <target name="build-stage-100" depends="build-stage-001">
     <antcall target="compile-java1" />
     <antcall target="compile-clojure1" />
-    <antcall target="compile-reader" />
   </target>
 
-  <target name="build-stage-2" depends="build-stage-1">
+  <target name="build-stage-200" depends="build-stage-100">
+    <delete dir="${clojure-build}"/>
     <antcall target="compile-clojure1" />
   </target>
+
+  <target name="build-jar" depends="build-stage-200">
+    <jar jarfile="${clojure_jar}" basedir="${clojure-build}">
+      <fileset dir="${java-build}">
+        <include name="**/*"/>
+      </fileset>
+      <fileset dir="${cljsrc}">
+        <include name="clojure/version.properties"/>
+      </fileset>
+     <manifest>
+        <attribute name="Main-Class" value="clojure.main"/>
+        <attribute name="Class-Path" value="."/>
+      </manifest>
+    </jar>
+  </target>
+
 
   <!-- -->
   <target name="clojure" depends="compile-clojure"

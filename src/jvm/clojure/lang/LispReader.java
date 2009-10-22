@@ -319,7 +319,7 @@ private static Object matchSymbol(String s){
 }
 
 
-private static Object matchNumber(String s){
+public static Object matchNumber(String s){
 	Matcher m = intPat.matcher(s);
 	if(m.matches())
 		{
@@ -362,11 +362,11 @@ static public IFn getMacro(int ch){
 	return null;
 }
 
-static private boolean isMacro(int ch){
+static public boolean isMacro(int ch){
 	return (ch < macros.length && macros[ch] != null);
 }
 
-static private boolean isTerminatingMacro(int ch){
+static public boolean isTerminatingMacro(int ch){
 	return (ch != '#' && ch < macros.length && macros[ch] != null);
 }
 

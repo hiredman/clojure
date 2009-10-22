@@ -181,7 +181,7 @@ static public Object read(PushbackReader r, boolean eofIsError, Object eofValue,
 		}
 }
 
-static private String readToken(PushbackReader r, char initch) throws Exception{
+static public String readToken(PushbackReader r, char initch) throws Exception{
 	StringBuilder sb = new StringBuilder();
 	sb.append(initch);
 
@@ -197,7 +197,7 @@ static private String readToken(PushbackReader r, char initch) throws Exception{
 		}
 }
 
-static private Object readNumber(PushbackReader r, char initch) throws Exception{
+static public Object readNumber(PushbackReader r, char initch) throws Exception{
 	StringBuilder sb = new StringBuilder();
 	sb.append(initch);
 
@@ -256,7 +256,7 @@ static private int readUnicodeChar(PushbackReader r, int initch, int base, int l
 	return uc;
 }
 
-static private Object interpretToken(String s) throws Exception{
+static public Object interpretToken(String s) throws Exception{
 	if(s.equals("nil"))
 		{
 		return null;
@@ -356,7 +356,7 @@ private static Object matchNumber(String s){
 	return null;
 }
 
-static private IFn getMacro(int ch){
+static public IFn getMacro(int ch){
 	if(ch < macros.length)
 		return macros[ch];
 	return null;
@@ -464,6 +464,16 @@ public static class CommentReader extends AFn{
 			ch = r.read();
 			} while(ch != -1 && ch != '\n' && ch != '\r');
 		return r;
+	}
+
+}
+
+public static class LispReaderFn extends AFn{
+	public Object invoke(Object readerO, Object eofIsErrorO, Object eofValue, Object recurO) throws Exception{
+      PushbackReader reader = (PushbackReader) readerO;
+      boolean eofIsError = (Boolean) eofIsErrorO;
+      boolean recur = (Boolean) recurO;
+      return read(reader, eofIsError, eofValue, recur);
 	}
 
 }

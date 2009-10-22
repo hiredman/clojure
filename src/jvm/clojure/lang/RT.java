@@ -256,6 +256,26 @@ static final public IFn EMPTY_GEN = new AFn(){
 };
 
 static{
+
+  Class readerClass;
+  IFn reader = null;
+
+  try {
+    String f = System.getProperty("reader.name");
+    readerClass = classForName(f);}
+  catch (Exception e) {
+    try {
+        System.err.println("Falling back to java reader.");
+        readerClass = classForName("clojure.lang.LispReader$LispReaderFn");}
+      catch (Exception e1) {
+        System.err.println("Whoops, no reader");
+        throw new RuntimeException("no reader");}}
+
+        try {
+   reader = (IFn) readerClass.newInstance();
+        } catch (Exception e) {;}
+  
+    Var.intern(CLOJURE_NS, Symbol.create("READER"), reader);
 	Keyword dockw = Keyword.intern(null, "doc");
 	Keyword arglistskw = Keyword.intern(null, "arglists");
 	Symbol namesym = Symbol.create("name");

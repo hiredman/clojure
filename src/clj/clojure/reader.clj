@@ -131,7 +131,7 @@
                             (throw (Exception. "EOF while reading string"))
                             (if (or (= (char ch) \")
                                     (= (char ch) \\))
-                              ""
+                              (char ch)
                               (condp = (char ch)
                                 \t \tab
                                 \r \return

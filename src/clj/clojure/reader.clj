@@ -14,7 +14,7 @@
           (inc [x] (clojure.lang.Numbers/inc x))
           (* [x y] (. clojure.lang.Numbers (multiply x y)))
           (+ [x y] (. clojure.lang.Numbers (add x y)))
-          (nil? [x] (if (= x nil) true false))
+          (nil? [x] (= x nil))
           ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           (wall-hack [class-name field-name obj]

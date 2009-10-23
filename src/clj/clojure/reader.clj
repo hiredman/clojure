@@ -3,8 +3,7 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 (defn- readI [rdr eof-is-error? eof-value recursive?]
-  (letfn [(whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch))))
-          ;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           (= [x y] (clojure.lang.Util/equiv x y))
           (name [x] (.getName x))
           (count [x] (clojure.lang.RT/count x))
@@ -38,11 +37,11 @@
               \` (clojure.lang.LispReader$SyntaxQuoteReader.)
               \~ unquote-reader
               \( list-reader
-              \) (clojure.lang.LispReader$UnmatchedDelimiterReader.)
-              \[ (clojure.lang.LispReader$VectorReader.)
-              \] (clojure.lang.LispReader$UnmatchedDelimiterReader.)
+              \) unmatched-delimited-reader
+              \[ vector-reader
+              \] unmatched-delimited-reader
               \{ (clojure.lang.LispReader$MapReader.)
-              \} (clojure.lang.LispReader$UnmatchedDelimiterReader.)
+              \} unmatched-delimited-reader
               \\ (clojure.lang.LispReader$CharacterReader.)
               \% arg-reader
               \# dispatch-reader
@@ -50,7 +49,7 @@
           (get-dispatch-macro [ch]
             (condp = (char ch)
               \^ (clojure.lang.LispReader$MetaReader.)
-              \' (clojure.lang.LispReader$VarReader.)
+              \' var-reader
               \" (clojure.lang.LispReader$RegexReader.)
               \( (clojure.lang.LispReader$FnReader.)
               \{ (clojure.lang.LispReader$SetReader.)
@@ -69,7 +68,16 @@
             (clojure.lang.LispReader/readUnicodeChar rdr ch base length exact)),
           (register-arg [n]
             (clojure.lang.LispReader/registerArg n))
-          ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (reader-exception [ln msg]
+            (clojure.lang.LispReader$ReaderException. ln msg))
+          ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (var-reader [rdr quo]
+            (list 'var (read rdr true nil true)))
+          (unmatched-delimited-reader [rdr rightdelim]
+            (throw
+              (Exception.
+                (format "Unmatched delimiter: %c" (char rightdelim)))))
+          (whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch))))
           (arg-reader [rdr pct]
             (if (nil? (arg-env))
               (interpret-token (read-token rdr \%))
@@ -192,6 +200,17 @@
                         n)))
                   (do (.append sb (char ch))
                     (recur (.read rdr)))))))
+          (vector-reader [rdr leftparen]
+            (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
+                         (.getLineNumber rdr)
+                         -1)
+                  list (read-delimited-list \] rdr true)]
+              (if (.isEmpty list)
+                ()
+                (let [s (clojure.lang.LazilyPersistentVector/create list)]
+                  (if (not (= -1 line))
+                    (.withMeta s {:line line})
+                    s)))))
           (list-reader [rdr leftparen]
             (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                          (.getLineNumber rdr)
@@ -202,7 +221,7 @@
                 (let [s (clojure.lang.PersistentList/create list)]
                   (if (not (= -1 line))
                     (.withMeta s {:line line})
-                    s)))))
+                    s))))),
           (macro? [ch] (not (nil? (get-macro ch))))
           (read [rdr eof-error? eof-value recursive?]
             (try
@@ -242,7 +261,7 @@
                 (if (or recursive?
                         (not (instance? clojure.lang.LineNumberingPushbackReader rdr)))
                   (throw e)
-                  (throw (clojure.lang.LispReader$ReaderException. (.getLineNumber rdr) e))))))
+                  (throw (reader-exception (.getLineNumber rdr) e))))))
           (read-token-sub [rdr ch]
             (let [token (read-token rdr (char ch))]
               (if (suppressed-read?)

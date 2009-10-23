@@ -17,9 +17,17 @@
           (nil? [x] (if (= x nil) true false))
           ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          (suppressed-read? [] (clojure.lang.RT/suppressRead))
+          (wall-hack [class-name field-name obj]
+            (-> class-name (.getDeclaredField (name field-name))
+              (doto (.setAccessible true))
+                    (.get obj))),
+          (arg-env []
+            (deref
+              (wall-hack clojure.lang.LispReader :ARG_ENV nil))),
+          (next-id [] (clojure.lang.RT/nextID)),
+          (suppressed-read? [] (clojure.lang.RT/suppressRead)),
           (match-number [s]
-            (clojure.lang.LispReader/matchNumber s))
+            (clojure.lang.LispReader/matchNumber s)),
           (get-macro [ch]
             (condp = (char ch)
               \" string-reader
@@ -35,17 +43,56 @@
               \] (clojure.lang.LispReader$UnmatchedDelimiterReader.)
               \{ (clojure.lang.LispReader$MapReader.)
               \} (clojure.lang.LispReader$UnmatchedDelimiterReader.)
-              \# (clojure.lang.LispReader$DispatchReader.)
+              \\ (clojure.lang.LispReader$CharacterReader.)
+              \% arg-reader
+              \# dispatch-reader
+              nil))
+          (get-dispatch-macro [ch]
+            (condp = (char ch)
+              \^ (clojure.lang.LispReader$MetaReader.)
+              \' (clojure.lang.LispReader$VarReader.)
+              \" (clojure.lang.LispReader$RegexReader.)
+              \( (clojure.lang.LispReader$FnReader.)
+              \{ (clojure.lang.LispReader$SetReader.)
+              \= (clojure.lang.LispReader$EvalReader.)
+              \! coment-reader
+              \< (clojure.lang.LispReader$UnreadableReader.)
+              \_ discard-reader
               nil))
           (read-delimited-list [delim rdr recur?]
-            (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
+            (clojure.lang.LispReader/readDelimitedList delim rdr recur?)),
           (read-number [rdr ch]
-            (clojure.lang.LispReader/readNumber rdr (char ch)))
+            (clojure.lang.LispReader/readNumber rdr (char ch))),
           (macth-symbol [s]
-            (clojure.lang.LispReader/matchSymbol s))
+            (clojure.lang.LispReader/matchSymbol s)),
           (read-uncode-char [rdr ch base length exact]
-            (clojure.lang.LispReader/readUnicodeChar rdr ch base length exact))
+            (clojure.lang.LispReader/readUnicodeChar rdr ch base length exact)),
+          (register-arg [n]
+            (clojure.lang.LispReader/registerArg n))
           ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (arg-reader [rdr pct]
+            (if (nil? (arg-env))
+              (interpret-token (read-token rdr \%))
+              (let [ch (.read rdr)]
+                (.unread rdr ch)
+                (if (or (= (int ch) -1)
+                        (whitespace? ch)
+                        (terminating-macro? ch))
+                  (register-arg 1)
+                  (let [n (read rdr true nil true)]
+                    (if (= n '&)
+                      (register-arg -1)
+                      (if (not (number? n))
+                        (throw (IllegalStateException. "arg literal must be %, %&, or %integer"))
+                        (.intValue (register-arg n))))))))),
+          (dispatch-reader [rdr hash]
+            (let [ch (.read rdr)]
+              (if (= (int ch) -1)
+                (throw (Exception. "EOF while reading character"))
+                (let [fn (get-dispatch-macro ch)]
+                  (if (nil? fn)
+                    (throw (Exception. (format "No dispatch macro for: %c" (char ch))))
+                    (fn rdr ch)))))),
           (unquote-reader [rdr comma]
             (let [ch (.read rdr)]
               (if (= (int ch) -1)
@@ -54,7 +101,7 @@
                   (let [o (read rdr true nil true)]
                     (clojure.lang.RT/list 'clojure.core/unquote-splicing o))
                   (do (.unread rdr ch)
-                    (clojure.lang.RT/list 'clojure.core/unquote (read rdr true nil true)))))))
+                    (clojure.lang.RT/list 'clojure.core/unquote (read rdr true nil true))))))),
           (wrapping-reader [sym]
             (fn [rdr quo]
               (let [o (read rdr true nil true)]
@@ -102,7 +149,9 @@
                                       (char ch)))
                                   (throw (Exception. (str "Unsupported escape character: " (char ch)))))))))
                         (char ch))))
-                          (recur (.read rdr)))))))
+                          (recur (.read rdr))))))),
+          (garg [n]
+            (symbol (str (if (= -1 n) "rest" (str "p" n)) "__" (next-id)))),
           (terminating-macro? [ch]
             (and (not (= (char ch) \#))
                  (not (nil? (get-macro ch)))))
@@ -155,10 +204,6 @@
                     (.withMeta s {:line line})
                     s)))))
           (macro? [ch] (not (nil? (get-macro ch))))
-          (wall-hack [class-name field-name obj]
-            (-> class-name (.getDeclaredField (name field-name))
-              (doto (.setAccessible true))
-                    (.get obj)))
           (read [rdr eof-error? eof-value recursive?]
             (try
               (loop [ch (.read rdr)]

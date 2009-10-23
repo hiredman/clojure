@@ -22,24 +22,87 @@
             (clojure.lang.LispReader/matchNumber s))
           (get-macro [ch]
             (condp = (char ch)
-              \; (clojure.lang.LispReader$CommentReader.)
-              \' (clojure.lang.LispReader$WrappingReader. 'clojure.core/quote)
-              \@ (clojure.lang.LispReader$WrappingReader. 'clojure.core/deref)
-              \^ (clojure.lang.LispReader$WrappingReader. 'clojure.core/meta)
+              \" string-reader
+              \; coment-reader
+              \' (wrapping-reader 'clojure.core/quote)
+              \@ (wrapping-reader 'clojure.core/deref)
+              \^ (wrapping-reader 'clojure.core/meta)
               \` (clojure.lang.LispReader$SyntaxQuoteReader.)
+              \~ unquote-reader
               \( list-reader
-              (let [macs (wall-hack clojure.lang.LispReader :macros nil)
-                    c (count macs)]
-                (if (and (> c (int ch)) (> (int ch) -1))
-                  (aget macs (int ch))
-                  nil))))
+              \) (clojure.lang.LispReader$UnmatchedDelimiterReader.)
+              \[ (clojure.lang.LispReader$VectorReader.)
+              \] (clojure.lang.LispReader$UnmatchedDelimiterReader.)
+              \{ (clojure.lang.LispReader$MapReader.)
+              \} (clojure.lang.LispReader$UnmatchedDelimiterReader.)
+              \# (clojure.lang.LispReader$DispatchReader.)
+              nil))
           (read-delimited-list [delim rdr recur?]
             (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
           (read-number [rdr ch]
             (clojure.lang.LispReader/readNumber rdr (char ch)))
           (macth-symbol [s]
             (clojure.lang.LispReader/matchSymbol s))
+          (read-uncode-char [rdr ch base length exact]
+            (clojure.lang.LispReader/readUnicodeChar rdr ch base length exact))
           ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (unquote-reader [rdr comma]
+            (let [ch (.read rdr)]
+              (if (= (int ch) -1)
+                (throw (Exception. "EOF while reading character"))
+                (if (= (char ch) \@)
+                  (let [o (read rdr true nil true)]
+                    (clojure.lang.RT/list 'clojure.core/unquote-splicing o))
+                  (do (.unread rdr ch)
+                    (clojure.lang.RT/list 'clojure.core/unquote (read rdr true nil true)))))))
+          (wrapping-reader [sym]
+            (fn [rdr quo]
+              (let [o (read rdr true nil true)]
+                (clojure.lang.RT/list sym o))))
+          (discard-reader [rdr underscore]
+            (read rdr true nil true)
+            rdr)
+          (coment-reader [rdr semicolon]
+            (loop [ch (.read rdr)]
+              (if (and (not (= -1 (int ch)))
+                       (not (= (char ch) \newline))
+                       (not (= (char ch) \return)))
+                (recur (.read rdr))
+                rdr)))
+          (string-reader [rdr doublequote]
+            (let [sb (StringBuilder.)]
+              (loop [ch (.read rdr)]
+                (if (= (char ch) \")
+                  (.toString sb)
+                  (do
+                   (.append sb
+                    (if (= (int ch) -1)
+                      (throw (Exception. "EOF while reading string"))
+                      (if (= \\ (char ch))
+                        (let [ch (.read rdr)]
+                          (if (= (int ch) -1)
+                            (throw (Exception. "EOF while reading string"))
+                            (if (or (= (char ch) \")
+                                    (= (char ch) \\))
+                              ""
+                              (condp = (char ch)
+                                \t \tab
+                                \r \return
+                                \n \newline
+                                \b \backspace
+                                \f \formfeed
+                                \u (let [ch (.read rdr)]
+                                     (if (= -1 (Character/digit (char ch) 16))
+                                       (throw (Exception. (str "Invalid unicode escape: \\u" (char ch))))
+                                       (char (read-uncode-char rdr ch 16 4 true))))
+                                (if (Character/isDigit ch)
+                                  (let [ch (read-uncode-char rdr ch 8 3 false)]
+                                    (if (> ch 0377)
+                                      (throw (Exception. "Octal escape sequence must be in range [0, 377]."))
+                                      (char ch)))
+                                  (throw (Exception. (str "Unsupported escape character: " (char ch)))))))))
+                        (char ch))))
+                          (recur (.read rdr)))))))
           (terminating-macro? [ch]
             (and (not (= (char ch) \#))
                  (not (nil? (get-macro ch)))))

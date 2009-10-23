@@ -233,7 +233,7 @@ static private int readUnicodeChar(String token, int offset, int length, int bas
 	return (char) uc;
 }
 
-static private int readUnicodeChar(PushbackReader r, int initch, int base, int length, boolean exact) throws Exception{
+static public int readUnicodeChar(PushbackReader r, int initch, int base, int length, boolean exact) throws Exception{
 	int uc = Character.digit(initch, base);
 	if(uc == -1)
 		throw new IllegalArgumentException("Invalid digit: " + initch);
@@ -287,7 +287,7 @@ static public Object interpretToken(String s) throws Exception{
 }
 
 
-private static Object matchSymbol(String s){
+public static Object matchSymbol(String s){
 	Matcher m = symbolPat.matcher(s);
 	if(m.matches())
 		{
@@ -599,7 +599,7 @@ public static class FnReader extends AFn{
 	}
 }
 
-static Symbol registerArg(int n){
+public static Symbol registerArg(int n){
 	PersistentTreeMap argsyms = (PersistentTreeMap) ARG_ENV.deref();
 	if(argsyms == null)
 		{

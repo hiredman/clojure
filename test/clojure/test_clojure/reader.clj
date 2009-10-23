@@ -210,7 +210,8 @@
 
 ;; Characters
 
-(deftest t-Characters)
+(deftest t-Characters
+  (is (= \f (read-string "\\f"))))
 
 ;; nil
 

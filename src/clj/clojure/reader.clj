@@ -17,8 +17,7 @@
           (nil? [x] (if (= x nil) true false))
           ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          (read-token [rdr initch]
-            (clojure.lang.LispReader/readToken rdr initch))
+          (suppressed-read? [] (clojure.lang.RT/suppressRead))
           (match-number [s]
             (clojure.lang.LispReader/matchNumber s))
           (get-macro [ch]
@@ -34,16 +33,38 @@
                 (if (and (> c (int ch)) (> (int ch) -1))
                   (aget macs (int ch))
                   nil))))
-          (terminating-macro? [ch]
-            (clojure.lang.LispReader/isTerminatingMacro ch))
           (read-delimited-list [delim rdr recur?]
             (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
-          (suppressed-read? [] (clojure.lang.RT/suppressRead))
           (read-number [rdr ch]
             (clojure.lang.LispReader/readNumber rdr (char ch)))
-          (interpret-token [token]
-            (clojure.lang.LispReader/interpretToken token))
+          (macth-symbol [s]
+            (clojure.lang.LispReader/matchSymbol s))
           ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (terminating-macro? [ch]
+            (and (not (= (char ch) \#))
+                 (not (nil? (get-macro ch)))))
+          (interpret-token [token]
+            (condp = token
+              "nil" nil
+              "true" true
+              "false" false
+              "/" (symbol "/")
+              "clojure.core//" (symbol "clojure.core" "/")
+              (let [ret (macth-symbol token)]
+                (if (not (nil? ret))
+                  ret
+                  (throw (Exception. (str "Invalid token: " + token)))))))
+          (read-token [rdr ch]
+            (let [sb (StringBuilder.)]
+              (.append sb (char ch))
+              (loop [ch (.read rdr)]
+                (if (or (= (int ch) -1)
+                        (whitespace? ch)
+                        (terminating-macro? ch))
+                  (do (.unread rdr ch)
+                    (.toString sb))
+                  (do (.append sb (char ch))
+                    (recur (.read rdr)))))))
           (read-number [rdr initch]
             (let [sb (StringBuilder.)]
               (.append sb (char initch))
@@ -122,7 +143,7 @@
   (read rdr eof-is-error? eof-value recursive?)))
 
 (when *compile-files*
-(with-open [file (-> "reader/reader.properties" java.io.File.
-                   java.io.FileWriter. java.io.PrintWriter.)]
-  (binding [*out* file]
-    (.println *out* (str "reader.name=" (.getName (class readI)))))))
+  (with-open [file (-> "reader/reader.properties" java.io.File.
+                     java.io.FileWriter. java.io.PrintWriter.)]
+    (binding [*out* file]
+      (.println *out* (str "reader.name=" (.getName (class readI)))))))

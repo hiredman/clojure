@@ -12,7 +12,8 @@
         intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
         ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
-        symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")]
+        symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
+        GENSYM_ENV (clojure.lang.Var/create)]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (= [x y] (clojure.lang.Util/equiv x y))
             (name [x] (.getName x))
@@ -60,7 +61,7 @@
                 \{ set-reader
                 \= (clojure.lang.LispReader$EvalReader.)
                 \! coment-reader
-                \< (clojure.lang.LispReader$UnreadableReader.)
+                \< unreadable-reader
                 \_ discard-reader
                 nil)),
             (read-delimited-list [delim rdr recur?]
@@ -69,7 +70,49 @@
               (clojure.lang.LispReader/registerArg n))
             (reader-exception [ln msg]
               (clojure.lang.LispReader$ReaderException. ln msg))
+            (empty-map []
+              clojure.lang.PersistentHashMap/EMPTY)
+            (push-thread-bindings [map]
+              (clojure.lang.Var/pushThreadBindings map))
+            (pop-thread-bindings []
+              (clojure.lang.Var/popThreadBindings))
+            (special-form? [form]
+              (clojure.lang.Compiler/isSpecial form))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (syntax-quote-reader- [rdr backquote]
+              (letfn [(syntax-quote [form]
+                        (letfn []
+                          (let [ret (cond
+                                      (special-form? form)
+                                        (list 'clojure.core/quote form)
+                                      (symbol? form)
+                                        (symbol-stuff)
+                                      (unquote? form)
+                                        (second form)
+                                      (unqote-splicing? form)
+                                        (throw (IllegalStateException. "splice not in list"))
+                                      (coll? form)
+                                        (collection-stuff)
+                                      (or (keyword? form)
+                                          (number? form)
+                                          (character? form)
+                                          (string? form))
+                                        form
+                                      :else
+                                        (list 'clojure.core/quote form))]
+                            (if (and (instance? clojure.lang.IObj form)
+                                     (not (nil? (meta form)))
+                                     (> (count (dissoc (meta form) :line)) 0))
+                              (list 'clojure.core/with-meta
+                                    ret
+                                    (syntax-quote (meta form)))
+                              ret))))]
+                (try
+                  (push-thread-bindings {GENSYM_ENV {}})
+                  (let [o (read rdr true nil true)]
+                    (syntax-quote o))
+                  (finally
+                    (pop-thread-bindings))))),
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form")))
             (regex-reader [rdr doublequote]

@@ -3,7 +3,11 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 (defn- readI [rdr eof-is-error? eof-value recursive?]
-  (let [state (atom {})]
+  (let [regex (fn [s] (java.util.regex.Pattern/compile s))
+        intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
+        floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
+        ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
+        symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (= [x y] (clojure.lang.Util/equiv x y))
             (name [x] (.getName x))
@@ -26,8 +30,11 @@
                 (wall-hack clojure.lang.LispReader :ARG_ENV nil))),
             (next-id [] (clojure.lang.RT/nextID)),
             (suppressed-read? [] (clojure.lang.RT/suppressRead)),
-            (match-number [s]
-              (clojure.lang.LispReader/matchNumber s)),
+            (numbers-reduce [n]
+              (clojure.lang.Numbers/reduce n)),
+            (numbers-divide [n d]
+              (clojure.lang.Numbers/divide n d)),
+            (array-list [] (java.util.ArrayList.)),
             (get-macro [ch]
               (condp = (char ch)
                 \" string-reader
@@ -61,8 +68,6 @@
                 nil))
             (read-delimited-list [delim rdr recur?]
               (clojure.lang.LispReader/readDelimitedList delim rdr recur?)),
-            (read-number [rdr ch]
-              (clojure.lang.LispReader/readNumber rdr (char ch))),
             (macth-symbol [s]
               (clojure.lang.LispReader/matchSymbol s)),
             (read-uncode-char [rdr ch base length exact]
@@ -72,6 +77,47 @@
             (reader-exception [ln msg]
               (clojure.lang.LispReader$ReaderException. ln msg))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (match-symbol [s]
+              (let [m (.matcher symbolPat s)]
+                (if (.matches m)
+                  (let [gc (.groupCount m)
+                        ns (.group m 1)
+                        name (.group 2)]
+                    (if (or (and (not (nil? ns))
+                                 (.endsWith ns ":/"))
+                            (.endsWith ns ":")
+                            (not (= -1 (.indexOf ns "::" 1))))
+                      nil
+                      (if (.startsWith s "::")))))))
+            (match-number [s]
+              (let [m (.matcher intPat s)]
+                (if (.matches m)
+                  (if (nil? (.group m 2))
+                    0
+                    (let [negate (= "-" (.group m 1))
+                          [radix n] (if-let [n (.group m 3)]
+                                      [10 n]
+                                      (if-let [n (.group m 4)]
+                                        [16 n]
+                                        (if-let [n (.group m 5)]
+                                          [8 n]
+                                          (if-let [n (.group m 7)]
+                                            [(Integer/parseInt (.group m 6)) n]
+                                            [10 nil]))))]
+                      (when (not (nil? n))
+                       (let [bn (BigInteger. n radix)]
+                         (numbers-reduce
+                           (if negate (.negate bn) bn))))))
+                  (let [m (.matcher floatPat s)]
+                    (if (.matches m)
+                      (if (not (nil? (.group m 4)))
+                        (BigDecimal. (.group m 1))
+                        (Double/parseDouble s))
+                      (let [m (.matcher ratioPat s)]
+                        (when (.matches m)
+                          (numbers-divide
+                            (BigInteger. (.group m 1))
+                            (BigInteger. (.group m 2))))))))))
             (var-reader [rdr quo]
               (list 'var (read rdr true nil true)))
             (unmatched-delimited-reader [rdr rightdelim]
@@ -275,3 +321,9 @@
                      java.io.FileWriter. java.io.PrintWriter.)]
     (binding [*out* file]
       (.println *out* (str "reader.name=" (.getName (class readI)))))))
+
+(defmacro lett [bindings & body]
+  (let [[name value & xs] bindings]
+    (if (not (nil? name))
+      `((fn [~name] (lett ~(vec xs) ~@body)) ~value)
+      `(do ~@body))))

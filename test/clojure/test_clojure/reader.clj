@@ -46,7 +46,7 @@
   (is (= "abcde" (str \a \b \c \d \e)))
   (is (= "abc
   def" (str \a \b \c \newline \space \space \d \e \f)))
-  )
+  (is (= "\"foo\"" (str \" \f \o \o \"))))
 
 ;; Numbers
 
@@ -211,7 +211,7 @@
 ;; Characters
 
 (deftest t-Characters
-  (is (= \f (read-string "\\f"))))
+  (is (= \f (first "f"))))
 
 ;; nil
 

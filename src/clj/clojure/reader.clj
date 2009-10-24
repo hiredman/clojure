@@ -70,6 +70,8 @@
             (reader-exception [ln msg]
               (clojure.lang.LispReader$ReaderException. ln msg))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (unreadable-reader [rdr leftangle]
+              (throw (Exception. "Unreadable form")))
             (regex-reader [rdr doublequote]
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
@@ -396,7 +398,7 @@
                             (let [ret (macro-fn rdr (char ch))]
                               (if (suppressed-read?)
                                 nil
-                                (if (= ret rdr)
+                                (if (identical? ret rdr)
                                   (recur (.read rdr))
                                   ret)))
                             (if (or (= (char ch) \+)

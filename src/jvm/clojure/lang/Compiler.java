@@ -4724,7 +4724,7 @@ static Object resolve(Symbol sym) throws Exception{
 	return resolveIn(currentNS(), sym, false);
 }
 
-static Namespace namespaceFor(Symbol sym){
+public static Namespace namespaceFor(Symbol sym){
 	return namespaceFor(currentNS(), sym);
 }
 

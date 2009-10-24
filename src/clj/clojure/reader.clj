@@ -40,27 +40,29 @@
             (numbers-divide [n d]
               (clojure.lang.Numbers/divide n d)),
             (array-list [] (java.util.ArrayList.)),
+            (string-builder [] (StringBuilder.)),
+            (append [sb thing] (.append sb thing))
             (namespace-for [kw]
               (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw))
             (current-ns [] (deref clojure.lang.RT/CURRENT_NS))
             (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw))
             (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw))
             (symbol-intern [s] (clojure.lang.Symbol/intern s))
-            (symbol [s] (clojure.lang.Symbol/create s))
+            ;(symbol [s] (clojure.lang.Symbol/create s))
             (syntax-quote-reader []
               (clojure.lang.LispReader$SyntaxQuoteReader.))
             (get-dispatch-macro [ch]
               (condp = (char ch)
                 \^ (clojure.lang.LispReader$MetaReader.)
                 \' var-reader
-                \" (clojure.lang.LispReader$RegexReader.)
+                \" regex-reader
                 \( (clojure.lang.LispReader$FnReader.)
-                \{ (clojure.lang.LispReader$SetReader.)
+                \{ set-reader
                 \= (clojure.lang.LispReader$EvalReader.)
                 \! coment-reader
                 \< (clojure.lang.LispReader$UnreadableReader.)
                 \_ discard-reader
-                nil))
+                nil)),
             (read-delimited-list [delim rdr recur?]
               (clojure.lang.LispReader/readDelimitedList delim rdr recur?)),
             (register-arg [n]
@@ -68,6 +70,14 @@
             (reader-exception [ln msg]
               (clojure.lang.LispReader$ReaderException. ln msg))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (regex-reader [rdr doublequote]
+              (let [sb (string-builder)]
+                (loop [ch (.read rdr)]
+                  (if (not (= \" (char ch)))
+                    (do (eof-guard ch (Exception. "EOF while reading regex"))
+                      (.append sb (char ch))
+                      (recur (.read rdr)))
+                    (regex (.toString sb))))))
             (get-macro [ch]
               (condp = (char ch)
                 \" string-reader
@@ -256,12 +266,12 @@
                   (recur (.read rdr))
                   rdr)))
             (string-reader [rdr doublequote]
-              (let [sb (StringBuilder.)]
+              (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (= (char ch) \")
                     (.toString sb)
                     (do
-                     (.append sb
+                     (append sb
                       (if (= (int ch) -1)
                         (throw (Exception. "EOF while reading string"))
                         (if (= \\ (char ch))
@@ -306,19 +316,19 @@
                     ret
                     (throw (Exception. (str "Invalid token: " + token)))))))
             (read-token [rdr ch]
-              (let [sb (StringBuilder.)]
-                (.append sb (char ch))
+              (let [sb (string-builder)]
+                (append sb (char ch))
                 (loop [ch (.read rdr)]
                   (if (or (= (int ch) -1)
                           (whitespace? ch)
                           (terminating-macro? ch))
                     (do (.unread rdr ch)
                       (.toString sb))
-                    (do (.append sb (char ch))
+                    (do (append sb (char ch))
                       (recur (.read rdr)))))))
             (read-number [rdr initch]
-              (let [sb (StringBuilder.)]
-                (.append sb (char initch))
+              (let [sb (string-builder)]
+                (append sb (char initch))
                 (loop [ch (.read rdr)]
                   (if (or (= (int ch) -1)
                           (whitespace? ch)
@@ -329,7 +339,7 @@
                         (if (nil? n)
                           (throw (NumberFormatException. (.concat "Invalid number: " s)))
                           n)))
-                    (do (.append sb (char ch))
+                    (do (append sb (char ch))
                       (recur (.read rdr)))))))
             (map-reader [rdr leftparen]
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
@@ -342,6 +352,8 @@
                     (if (not (= -1 line))
                       (.withMeta s {:line line})
                       s)))))
+            (set-reader [rdr leftparen]
+              (clojure.lang.PersistentHashSet/create (read-delimited-list \} rdr true))),
             (vector-reader [rdr leftparen]
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)

@@ -72,7 +72,8 @@
             (symbol-intern [s] (clojure.lang.Symbol/intern s))
             (get-dispatch-macro [ch]
               (condp = (char ch)
-                \^ (clojure.lang.LispReader$MetaReader.)
+                ;\^ (clojure.lang.LispReader$MetaReader.)
+                \^ meta-reader 
                 \' var-reader
                 \" regex-reader
                 \( (clojure.lang.LispReader$FnReader.)
@@ -96,31 +97,31 @@
               (clojure.lang.Var/popThreadBindings))
             (special-form? [form]
               (clojure.lang.Compiler/isSpecial form))
-            ;(syntax-quote-reader [rdr backquote]
-            ;  ((clojure.lang.LispReader$SyntaxQuoteReader.) rdr backquote))
+            (regex-reader [rdr doublequote]
+              ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (meta-reader [rdr caret]
+              (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
+                           (.getLineNumber rdr)
+                           -1)
+                    meta (let [meta (read rdr true nil true)]
+                           (if (or (symbol? meta)
+                                   (keyword? meta)
+                                   (string? meta))
+                             {:tag meta}
+                             (if (not (map? meta))
+                               (throw (IllegalArgumentException. "Metadata must be  Symbol, Keyword, String, or Map"))
+                               meta)))
+                    o (read rdr true nil true)]
+                (let [meta (if (and (instance? clojure.lang.ISeq o) (not (= -1 line)))
+                             (assoc meta :line line))]
+                  (if (instance? clojure.lang.IMeta o)
+                    (if (instance? clojure.lang.IReference o)
+                      (reset-meta! o meta)
+                      (with-meta o meta))
+                    (throw (IllegalArgumentException. "Metadata can only be applied to IMetas"))))))
             (character? [ch] (instance? Character ch))
             (p [x] (.println System/err (.toString x)))
-            (read-delimited-list- [delim rdr recur?]
-              (p "read-delimited-list")
-              (let [a (array-list)]
-                (loop [ch (.read rdr)]
-                  (if (= (char ch) (char delim))
-                      a
-                    (if (whitespace? ch)
-                      (recur (.read rdr))
-                      (if (= (int ch) -1)
-                        (throw (Exception. "EOF while reading"))
-                        (if-let [macro-fn (get-macro ch)]
-                          (let [mret (macro-fn rdr ch)]
-                            (when (not (identical? mret rdr))
-                              (.add a mret))
-                            (recur (.read rdr)))
-                          (do (.unread rdr ch)
-                            (let [o (read rdr true nil recur?)]
-                              (when (not (identical? rdr o))
-                                (.add a o))
-                              (recur (.read rdr))))))))))),
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
@@ -240,20 +241,7 @@
                     (pop-thread-bindings))))),
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form")))
-            (regex-reader- [rdr doublequote]
-              (let [sb (string-builder)]
-                (loop [ch (.read rdr)]
-                  (if (not (= \" (char ch)))
-                    (do (eof-guard ch (Exception. "EOF while reading regex"))
-                      (append sb ch)
-                      (if (= (char ch) \\)
-                        (let [ch (.read rdr)]
-                          (eof-guard ch (Exception. "EOF while reading regex"))
-                          (append sb ch)))
-                      (recur (.read rdr)))
-                    (regex (.toString sb)))))),
-            (regex-reader [rdr doublequote]
-              ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
+            
             (get-macro [ch]
               (condp = (char ch)
                 \" string-reader

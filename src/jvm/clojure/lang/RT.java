@@ -259,7 +259,7 @@ static{
 
   Class readerClass;
   IFn reader = null;
-
+  Var.intern(CLOJURE_NS, Symbol.create("*trace-reader*"), false);
   try {
     java.util.Properties p = new java.util.Properties();
     p.load(RT.class.getResourceAsStream("/reader.properties"));
@@ -1526,7 +1526,6 @@ static public ClassLoader baseLoader(){
 }
 
 static public Class classForName(String name) throws ClassNotFoundException{
-
 	return Class.forName(name, true, baseLoader());
 }
 

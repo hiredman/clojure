@@ -7,7 +7,25 @@
   `(when (= -1 (int ~ch))
      (throw ~e)))
 
+(defmacro p [thing]
+  `(when *trace-reader* (.println System/err (.toString ~thing))))
+
+(defmacro pre-post-p [pre post & body]
+  `(do
+     (p ~pre)
+     (let [x# (do ~@body)]
+       (p ~post)
+       x#)))
+
+(defmacro safe-to-array [x]
+  `(pre-post-p "enter safe-to-array" "exit safe-to-array"
+     (let [x# ~x]
+      (if x#
+        (.toArray x#)
+        (.toArray [])))))
+
 (defn- readI [rdr eof-is-error? eof-value recursive?]
+  (.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
   (let [regex (fn [s] (java.util.regex.Pattern/compile s))
         intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
@@ -36,6 +54,7 @@
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
+              (p "enter wall-hack")
               (letfn [(wall-hack-field [class-name field-name obj]
                         (-> class-name (.getDeclaredField (name field-name))
                           (doto (.setAccessible true)) (.get obj)))
@@ -72,19 +91,77 @@
             (special-form? [form] (clojure.lang.Compiler/isSpecial form)),
             (val-at [a b] (.valAt a b)),
             (to-string [x] (.toString x)),
+            (class-for-name [name]
+              (pre-post-p (format "enter class-for-name %s" (.toString name))
+                          (format "exit class-for-name %s" (.toString name))
+                          (clojure.lang.RT/classForName name)))
+            (invoke-constructor [class args]
+              (pre-post-p (format "enter invoke-constructor %s %s" (.toString class) (if (nil? args) "null" (.toString args)))
+                          (format "exit invoke-constructor %s %s" (.toString class) (if (nil? args) "null" (.toString args)))
+                          (clojure.lang.Reflector/invokeConstructor class args)))
+            (static-member-name? [x]
+              (clojure.lang.Compiler/namesStaticMember x))
+            (invoke-static [class name args]
+              (p "invoke-static")
+              (clojure.lang.Reflector/invokeStaticMethod class name args))
             ;
             (reader-exception [ln msg]
+              (p "reader-exception")
               (clojure.lang.LispReader$ReaderException. ln msg)),
-            (regex-reader [rdr doublequote]
-              ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
             (fn-reader [rdr lparen]
+              (p "fn-reader")
               ((clojure.lang.LispReader$FnReader.) rdr (char lparen)))
             (arg-reader [rdr pct]
+               (p "arg-reader")
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
-            (eval-reader [] (clojure.lang.LispReader$EvalReader.))
             (read-delimited-list [delim rdr recur?]
+              (p "read-delimited-list")
               (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (eval-reader [rdr eq]
+              (p "eval-reader")
+              (when (not *read-eval*)
+                (throw (Exception. "eval-reader not allow when *read-eval* is false.")))
+              (let [o (read rdr true nil true)]
+                (if (symbol? o)
+                  (class-for-name o)
+                  (if (list? o)
+                    (let [fs (first o)]
+                      (if (= 'var fs)
+                         (clojure.lang.RT/var (namespace (second o)) (name (second o)))
+                        (if (.endsWith (name fs) ".")
+                          (invoke-constructor
+                            (class-for-name
+                              (.substring (name fs)
+                                          0
+                                          (+ (.length (name fs)) -1)))
+                            (safe-to-array (next o)))
+                          (if (static-member-name? fs)
+                            (invoke-static
+                              (namespace fs)
+                              (name fs)
+                              (safe-to-array (next o)))
+                            (let [v (clojure.lang.Compiler/maybeResolveIn
+                                      (current-ns)
+                                      fs)]
+                              (if (var? v)
+                                (.applyTo v (next o))
+                                (throw (Exception. (format "Can't resolve %s" (.toString fs))))))))))
+                    (throw (IllegalArgumentException. "Unsupported #= form"))))))
+            (regex-reader [rdr doublequote]
+              (let [sb (string-builder)]
+                (loop [ch (.read rdr)]
+                  (if (not (= (char ch) \"))
+                    (if (= (int ch) -1)
+                      (throw (Exception. "EOF while reading regex"))
+                      (do (append sb (char ch))
+                        (when (= (char ch) \\)
+                          (let [ch (.read rdr)]
+                            (when (= (int ch) -1)
+                              (throw (Exception. "EOF while reading regex")))
+                            (append sb (char ch))))
+                        (recur (.read rdr))))
+                    (regex (.toString sb))))))
             (get-dispatch-macro [ch]
               (condp = (char ch)
                 \^ meta-reader 
@@ -92,12 +169,13 @@
                 \" regex-reader
                 \( fn-reader
                 \{ set-reader
-                \= (eval-reader)
+                \= eval-reader
                 \! coment-reader
                 \< unreadable-reader
                 \_ discard-reader
                 nil))
             (meta-reader [rdr caret]
+              (p "enter meta-reader")
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)
@@ -118,7 +196,7 @@
                       (with-meta o meta))
                     (throw (IllegalArgumentException. "Metadata can only be applied to IMetas"))))))
             (character? [ch] (instance? Character ch))
-            (p [x] (.println System/err (to-string x)))
+            ;(p [x] (when *trace-reader* (.println System/err (to-string x))))
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
@@ -126,6 +204,7 @@
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote-splicing)))
             (syntax-quote-reader [rdr backquote]
+              (p "syntax-quote-reader")
               (letfn [(syntax-quote [form]
                         (letfn [(gs-symbol-name [sym]
                                   (symbol
@@ -239,6 +318,7 @@
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
+              ;(p (format "get-macro %c" (char ch)))
               (condp = (char ch)
                 \" string-reader
                 \; coment-reader
@@ -550,7 +630,7 @@
                 (if (suppressed-read?)
                   nil
                   (interpret-token token))))]
-  (read rdr eof-is-error? eof-value recursive?))))
+  (pre-post-p "enter reader" "exit reader" (read rdr eof-is-error? eof-value recursive?)))))
 
 (when *compile-files*
   (with-open [file (-> "reader/reader.properties" java.io.File.

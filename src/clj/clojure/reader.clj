@@ -27,13 +27,25 @@
             (nil? [x] (if (= x nil) true false))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (wall-hack [class-name field-name obj]
-              (-> class-name (.getDeclaredField (name field-name))
-                (doto (.setAccessible true))
-                      (.get obj))),
+            (wall-hack [what & args]
+              (letfn [(wall-hack-field [class-name field-name obj]
+                        (-> class-name (.getDeclaredField (name field-name))
+                          (doto (.setAccessible true)) (.get obj)))
+                      (wall-hack-method [class-name method-name types obj & args]
+                        (-> class-name (.getDeclaredMethod (name method-name)
+                                                           (into-array Class types))
+                          (doto (.setAccessible true))
+                          (.invoke obj (into-array Object args))))]
+                     (condp = what
+                       :method
+                        (apply wall-hack-method args)
+                       :field
+                        (apply wall-hack-field args)
+                       :else
+                        (throw (IllegalArgumentException. "boo")))))
             (arg-env []
               (deref
-                (wall-hack clojure.lang.LispReader :ARG_ENV nil))),
+                (wall-hack :field clojure.lang.LispReader :ARG_ENV nil))),
             (next-id [] (clojure.lang.RT/nextID)),
             (suppressed-read? [] (clojure.lang.RT/suppressRead)),
             (numbers-reduce [n]

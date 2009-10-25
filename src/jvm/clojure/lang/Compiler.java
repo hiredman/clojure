@@ -241,11 +241,11 @@ interface IParser{
 	Expr parse(C context, Object form) throws Exception;
 }
 
-static boolean isSpecial(Object sym){
+public static boolean isSpecial(Object sym){
 	return specials.containsKey(sym);
 }
 
-static Symbol resolveSymbol(Symbol sym){
+public static Symbol resolveSymbol(Symbol sym){
 	//already qualified or classname?
 	if(sym.name.indexOf('.') > 0)
 		return sym;

@@ -13,7 +13,8 @@
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
         ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
         symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
-        GENSYM_ENV (clojure.lang.Var/create)]
+        GENSYM_ENV (clojure.lang.Var/create nil)
+        ARG_ENV (clojure.lang.Var/create nil)]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (= [x y] (clojure.lang.Util/equiv x y))
             (name [x] (.getName x))
@@ -47,9 +48,6 @@
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo")))))
-            (arg-env []
-              (deref
-                (wall-hack :field clojure.lang.LispReader :ARG_ENV nil))),
             (next-id [] (clojure.lang.RT/nextID)),
             (suppressed-read? [] (clojure.lang.RT/suppressRead)),
             (numbers-reduce [n]
@@ -60,10 +58,7 @@
             (string-builder [] (StringBuilder.)),
             (append [sb thing] (.append sb thing))
             (namespace-for [kw]
-              (p kw)
-              (let [x (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw)]
-                (p x)
-                x))
+              (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw))
             (resolve-symbol [sym]
               (clojure.lang.Compiler/resolveSymbol sym))
             (current-ns [] (deref clojure.lang.RT/CURRENT_NS))
@@ -72,11 +67,10 @@
             (symbol-intern [s] (clojure.lang.Symbol/intern s))
             (get-dispatch-macro [ch]
               (condp = (char ch)
-                ;\^ (clojure.lang.LispReader$MetaReader.)
                 \^ meta-reader 
                 \' var-reader
                 \" regex-reader
-                \( (clojure.lang.LispReader$FnReader.)
+                \( fn-reader
                 \{ set-reader
                 \= (clojure.lang.LispReader$EvalReader.)
                 \! coment-reader
@@ -100,6 +94,35 @@
             (regex-reader [rdr doublequote]
               ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (fn-reader [rdr lparen]
+              (letfn [(hiarg [i args hiarg argsyms]
+                        (if (> (inc hiarg) i)
+                          (let [sym (.valAt argsyms i)]
+                            (recur (inc i)
+                                   (conj args
+                                         (if (nil? sym)
+                                           (garg i)
+                                           sym))
+                                   hiarg
+                                   args))
+                          args))]
+                (when (not (nil? (deref ARG_ENV)))
+                  (throw (IllegalArgumentException. "Nested #()s are not allowed")))
+                (try
+                  (push-thread-bindings {ARG_ENV {}})
+                  (.unread rdr (first "("))
+                  (let [form (read rdr true nil true)
+                        argsyms (deref ARG_ENV)
+                        rargs (rseq argsyms)
+                        args (hiarg 1 [] (key (first rargs)) argsyms)
+                        restsym (.valAt argsyms -1)]
+                    (list 'fn*
+                          (if (not (nil? restsym))
+                            (conj args '& restsym)
+                            args)
+                          form))
+                  (finally
+                    (pop-thread-bindings)))))
             (meta-reader [rdr caret]
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
@@ -385,7 +408,7 @@
                   (format "Unmatched delimiter: %c" (char rightdelim))))),
             (whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch)))),
             (arg-reader [rdr pct]
-              (if (nil? (arg-env))
+              (if (nil? (deref ARG_ENV))
                 (interpret-token (read-token rdr \%))
                 (let [ch (.read rdr)]
                   (.unread rdr ch)
@@ -482,7 +505,6 @@
                     ret
                     (throw (Exception. (format "Invalid token: %s" token))))))),
             (read-token [rdr ch]
-              ;(p "read-token")
               (let [sb (string-builder)]
                 (append sb (char ch))
                 (loop [ch (.read rdr)]
@@ -516,7 +538,6 @@
             (vector-reader [rdr leftparen]
               (clojure.lang.LazilyPersistentVector/create (read-delimited-list \] rdr true)))
             (list-reader [rdr leftparen]
-              ;(p "list-reader")
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)

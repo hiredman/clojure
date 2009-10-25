@@ -810,7 +810,7 @@ static boolean isUnquoteSplicing(Object form){
 	return form instanceof ISeq && Util.equals(RT.first(form),UNQUOTE_SPLICING);
 }
 
-static boolean isUnquote(Object form){
+public static boolean isUnquote(Object form){
 	return form instanceof ISeq && Util.equals(RT.first(form),UNQUOTE);
 }
 
@@ -1044,7 +1044,7 @@ public static List readDelimitedList(char delim, PushbackReader r, boolean isRec
 			{
 			unread(r, ch);
 
-			Object o = read(r, true, null, isRecursive);
+			Object o = RT.read(r, true, null, isRecursive);
 			if(o != r)
 				a.add(o);
 			}

@@ -27,8 +27,12 @@
             (+ [x y] (. clojure.lang.Numbers (add x y)))
             (nil? [x] (if (= x nil) true false))
             (format [fmt & args] (String/format fmt (.toArray args)))
-            (symbol? [o] (instance? clojure.lang.Symbol o))
-            (namespace [o] (.getNamespace o))
+            ;(symbol? [o] (instance? clojure.lang.Symbol o))
+            ;(keyword? [o] (instance? clojure.lang.Keyword o))
+            ;(map? [o] (instance? clojure.lang.IPersistentMap o))
+            ;(string? [o] (instance? String o))
+            ;(namespace [o] (.getNamespace o))
+            ;(with-meta [o m] (.withMeta o m))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
@@ -66,7 +70,7 @@
               (let [argsyms (deref ARG_ENV)]
                 (if (nil? argsyms)
                   (throw (IllegalArgumentException. "arg literal not in #()"))
-                  (let [ret (.valAt argsyms n)]
+                  (let [ret (val-at argsyms n)]
                     (if (nil? ret)
                       (let [ret (garg n)]
                         (.set ARG_ENV (assoc argsyms n ret))
@@ -76,6 +80,8 @@
               (clojure.lang.Var/pushThreadBindings map)),
             (pop-thread-bindings [] (clojure.lang.Var/popThreadBindings)),
             (special-form? [form] (clojure.lang.Compiler/isSpecial form)),
+            (val-at [a b] (.valAt a b)),
+            (to-string [x] (.toString x)),
             ;
             (reader-exception [ln msg]
               (clojure.lang.LispReader$ReaderException. ln msg)),
@@ -100,7 +106,7 @@
             (fn-reader [rdr lparen]
               (letfn [(hiarg [i args hiarg argsyms]
                         (if (> (inc hiarg) i)
-                          (let [sym (.valAt argsyms i)]
+                          (let [sym (val-at argsyms i)]
                             (recur (inc i)
                                    (conj args
                                          (if (nil? sym)
@@ -118,14 +124,14 @@
                         argsyms (deref ARG_ENV)
                         rargs (rseq argsyms)
                         args (hiarg 1 [] (key (first rargs)) argsyms)
-                        restsym (.valAt argsyms -1)]
+                        restsym (val-at argsyms -1)]
                     (list 'fn*
                           (if (not (nil? restsym))
                             (conj args '& restsym)
                             args)
                           form))
                   (finally
-                    (pop-thread-bindings)))))
+                    (pop-thread-bindings))))),
             (meta-reader [rdr caret]
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
@@ -147,7 +153,7 @@
                       (with-meta o meta))
                     (throw (IllegalArgumentException. "Metadata can only be applied to IMetas"))))))
             (character? [ch] (instance? Character ch))
-            (p [x] (.println System/err (.toString x)))
+            (p [x] (.println System/err (to-string x)))
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
@@ -236,7 +242,7 @@
                                       (throw (UnsupportedOperationException. "Unknown Collection type")))),]
                           (let [ret (cond
                                       (special-form? form)
-                                        (list 'clojure.core/quote form)
+                                        (list 'quote form)
                                       (symbol? form)
                                         (symbol-stuff)
                                       (unquote? form)
@@ -251,7 +257,7 @@
                                           (string? form))
                                         form
                                       :else
-                                        (list 'clojure.core/quote form))]
+                                        (list 'quote form))]
                             (if (and (instance? clojure.lang.IObj form)
                                      (not (nil? (meta form)))
                                      (> (count (dissoc (meta form) :line)) 0))
@@ -266,8 +272,7 @@
                   (finally
                     (pop-thread-bindings))))),
             (unreadable-reader [rdr leftangle]
-              (throw (Exception. "Unreadable form")))
-            
+              (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
               (condp = (char ch)
                 \" string-reader
@@ -286,7 +291,7 @@
                 \\ character-reader
                 \% arg-reader
                 \# dispatch-reader
-                nil))
+                nil)),
             (character-reader [rdr backslash]
               (let [ch (.read rdr)]
                 (eof-guard ch (Exception. "EOF while reading character"))
@@ -318,7 +323,7 @@
                                   (throw (Exception. "Octal escape sequence must be in range [0, 377]."))
                                   uc))))
                         :else
-                          (throw (Exception. (format "Unsupported character: \\%s" token)))))))))
+                          (throw (Exception. (format "Unsupported character: \\%s" token))))))))),
             (read-unicode-char<string> [token offset length base]
               (if (not (= (.length token) (+ offset length)))
                 (throw (IllegalArgumentException. (format "Invalid unicode character: \\%s" token)))
@@ -327,7 +332,7 @@
                     (let [d (Character/digit (.charAt token i) base)]
                       (eof-guard d (IllegalArgumentException. (format "Invalid digit: %c" (char d))))
                       (recur (inc i) (+ d (* uc base))))
-                    uc))))
+                    uc)))),
             (read-unicode-char<pushback> [rdr ch base length exact]
               (letfn [(break [uc i length exact]
                         (if (and exact (not (= i length)))
@@ -460,7 +465,7 @@
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (= (char ch) \")
-                    (.toString sb)
+                    (to-string sb)
                     (do
                      (append sb
                       (if (= (int ch) -1)
@@ -514,7 +519,7 @@
                           (whitespace? ch)
                           (terminating-macro? ch))
                     (do (.unread rdr ch)
-                      (.toString sb))
+                      (to-string sb))
                     (do (append sb (char ch))
                       (recur (.read rdr))))))),
             (read-number [rdr initch]
@@ -525,7 +530,7 @@
                           (whitespace? ch)
                           (macro? ch))
                     (do (.unread rdr ch)
-                      (let [s (.toString sb)
+                      (let [s (to-string sb)
                             n (match-number s)]
                         (if (nil? n)
                           (throw (NumberFormatException. (format "Invalid number: %s" s)))

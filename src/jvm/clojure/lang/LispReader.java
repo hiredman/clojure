@@ -481,7 +481,7 @@ public static class LispReaderFn extends AFn{
 public static class DiscardReader extends AFn{
 	public Object invoke(Object reader, Object underscore) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
-		read(r, true, null, true);
+		RT.read(r, true, null, true);
 		return r;
 	}
 }
@@ -495,7 +495,7 @@ public static class WrappingReader extends AFn{
 
 	public Object invoke(Object reader, Object quote) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
-		Object o = read(r, true, null, true);
+		Object o = RT.read(r, true, null, true);
 		return RT.list(sym, o);
 	}
 
@@ -504,7 +504,7 @@ public static class WrappingReader extends AFn{
 public static class VarReader extends AFn{
 	public Object invoke(Object reader, Object quote) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
-		Object o = read(r, true, null, true);
+		Object o = RT.read(r, true, null, true);
 //		if(o instanceof Symbol)
 //			{
 //			Object v = Compiler.maybeResolveIn(Compiler.currentNS(), (Symbol) o);
@@ -565,7 +565,7 @@ public static class FnReader extends AFn{
 			Var.pushThreadBindings(
 					RT.map(ARG_ENV, PersistentTreeMap.EMPTY));
 			r.unread('(');
-			Object form = read(r, true, null, true);
+			Object form = RT.read(r, true, null, true);
 
 			PersistentVector args = PersistentVector.EMPTY;
 			PersistentTreeMap argsyms = (PersistentTreeMap) ARG_ENV.deref();
@@ -614,7 +614,7 @@ public static Symbol registerArg(int n){
 	return ret;
 }
 
-static class ArgReader extends AFn{
+public static class ArgReader extends AFn{
 	public Object invoke(Object reader, Object pct) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
 		if(ARG_ENV.deref() == null)
@@ -628,7 +628,7 @@ static class ArgReader extends AFn{
 			{
 			return registerArg(1);
 			}
-		Object n = read(r, true, null, true);
+		Object n = RT.read(r, true, null, true);
 		if(n.equals(Compiler._AMP_))
 			return registerArg(-1);
 		if(!(n instanceof Number))
@@ -643,13 +643,13 @@ public static class MetaReader extends AFn{
 		int line = -1;
 		if(r instanceof LineNumberingPushbackReader)
 			line = ((LineNumberingPushbackReader) r).getLineNumber();
-		Object meta = read(r, true, null, true);
+		Object meta = RT.read(r, true, null, true);
 		if(meta instanceof Symbol || meta instanceof Keyword || meta instanceof String)
 			meta = RT.map(RT.TAG_KEY, meta);
 		else if(!(meta instanceof IPersistentMap))
 			throw new IllegalArgumentException("Metadata must be Symbol,Keyword,String or Map");
 
-		Object o = read(r, true, null, true);
+		Object o = RT.read(r, true, null, true);
 		if(o instanceof IMeta)
 			{
 			if(line != -1 && o instanceof ISeq)
@@ -675,7 +675,7 @@ public static class SyntaxQuoteReader extends AFn{
 			Var.pushThreadBindings(
 					RT.map(GENSYM_ENV, PersistentHashMap.EMPTY));
 
-			Object form = read(r, true, null, true);
+			Object form = RT.read(r, true, null, true);
 			return syntaxQuote(form);
 			}
 		finally
@@ -822,13 +822,13 @@ static class UnquoteReader extends AFn{
 			throw new Exception("EOF while reading character");
 		if(ch == '@')
 			{
-			Object o = read(r, true, null, true);
+			Object o = RT.read(r, true, null, true);
 			return RT.list(UNQUOTE_SPLICING, o);
 			}
 		else
 			{
 			unread(r, ch);
-			Object o = read(r, true, null, true);
+			Object o = RT.read(r, true, null, true);
 			return RT.list(UNQUOTE, o);
 			}
 	}
@@ -936,7 +936,7 @@ public static class EvalReader extends AFn{
 	    }
 		
 		PushbackReader r = (PushbackReader) reader;
-		Object o = read(r, true, null, true);
+		Object o = RT.read(r, true, null, true);
 		if(o instanceof Symbol)
 			{
 			return RT.classForName(o.toString());

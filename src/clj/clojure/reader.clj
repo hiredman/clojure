@@ -66,16 +66,6 @@
             (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw)),
             (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw)),
             (symbol-intern [s] (clojure.lang.Symbol/intern s)),
-            (register-arg [n]
-              (let [argsyms (deref ARG_ENV)]
-                (if (nil? argsyms)
-                  (throw (IllegalArgumentException. "arg literal not in #()"))
-                  (let [ret (val-at argsyms n)]
-                    (if (nil? ret)
-                      (let [ret (garg n)]
-                        (.set ARG_ENV (assoc argsyms n ret))
-                        ret)
-                      ret))))),
             (push-thread-bindings [map]
               (clojure.lang.Var/pushThreadBindings map)),
             (pop-thread-bindings [] (clojure.lang.Var/popThreadBindings)),
@@ -87,6 +77,10 @@
               (clojure.lang.LispReader$ReaderException. ln msg)),
             (regex-reader [rdr doublequote]
               ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
+            (fn-reader [rdr lparen]
+              ((clojure.lang.LispReader$FnReader.) rdr (char lparen)))
+            (arg-reader [rdr pct]
+               ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
             (eval-reader [] (clojure.lang.LispReader$EvalReader.))
             (read-delimited-list [delim rdr recur?]
               (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
@@ -103,35 +97,6 @@
                 \< unreadable-reader
                 \_ discard-reader
                 nil))
-            (fn-reader [rdr lparen]
-              (letfn [(hiarg [i args hiarg argsyms]
-                        (if (> (inc hiarg) i)
-                          (let [sym (val-at argsyms i)]
-                            (recur (inc i)
-                                   (conj args
-                                         (if (nil? sym)
-                                           (garg i)
-                                           sym))
-                                   hiarg
-                                   args))
-                          args))]
-                (when (not (nil? (deref ARG_ENV)))
-                  (throw (IllegalArgumentException. "Nested #()s are not allowed")))
-                (try
-                  (push-thread-bindings {ARG_ENV {}})
-                  (.unread rdr (first "("))
-                  (let [form (read rdr true nil true)
-                        argsyms (deref ARG_ENV)
-                        rargs (rseq argsyms)
-                        args (hiarg 1 [] (key (first rargs)) argsyms)
-                        restsym (val-at argsyms -1)]
-                    (list 'fn*
-                          (if (not (nil? restsym))
-                            (conj args '& restsym)
-                            args)
-                          form))
-                  (finally
-                    (pop-thread-bindings))))),
             (meta-reader [rdr caret]
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
@@ -415,21 +380,6 @@
                 (Exception.
                   (format "Unmatched delimiter: %c" (char rightdelim))))),
             (whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch)))),
-            (arg-reader [rdr pct]
-              (if (nil? (deref ARG_ENV))
-                (interpret-token (read-token rdr \%))
-                (let [ch (.read rdr)]
-                  (.unread rdr ch)
-                  (if (or (= (int ch) -1)
-                          (whitespace? ch)
-                          (terminating-macro? ch))
-                    (register-arg 1)
-                    (let [n (read rdr true nil true)]
-                      (if (= n '&)
-                        (register-arg -1)
-                        (if (not (number? n))
-                          (throw (IllegalStateException. "arg literal must be %, %&, or %integer"))
-                          (.intValue (register-arg n))))))))),
             (dispatch-reader [rdr hash]
               (let [ch (.read rdr)]
                 (if (= (int ch) -1)

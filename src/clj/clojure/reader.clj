@@ -26,8 +26,7 @@
             (* [x y] (. clojure.lang.Numbers (multiply x y)))
             (+ [x y] (. clojure.lang.Numbers (add x y)))
             (nil? [x] (if (= x nil) true false))
-            (format [fmt & args]
-              (String/format fmt (.toArray args)))
+            (format [fmt & args] (String/format fmt (.toArray args)))
             (symbol? [o] (instance? clojure.lang.Symbol o))
             (namespace [o] (.getNamespace o))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -47,24 +46,45 @@
                        :field
                         (apply wall-hack-field args)
                        :else
-                        (throw (IllegalArgumentException. "boo")))))
+                        (throw (IllegalArgumentException. "boo"))))),
             (next-id [] (clojure.lang.RT/nextID)),
             (suppressed-read? [] (clojure.lang.RT/suppressRead)),
-            (numbers-reduce [n]
-              (clojure.lang.Numbers/reduce n)),
-            (numbers-divide [n d]
-              (clojure.lang.Numbers/divide n d)),
+            (numbers-reduce [n] (clojure.lang.Numbers/reduce n)),
+            (numbers-divide [n d] (clojure.lang.Numbers/divide n d)),
             (array-list [] (java.util.ArrayList.)),
             (string-builder [] (StringBuilder.)),
-            (append [sb thing] (.append sb thing))
+            (append [sb thing] (.append sb thing)),
             (namespace-for [kw]
-              (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw))
+              (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw)),
             (resolve-symbol [sym]
-              (clojure.lang.Compiler/resolveSymbol sym))
-            (current-ns [] (deref clojure.lang.RT/CURRENT_NS))
-            (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw))
-            (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw))
-            (symbol-intern [s] (clojure.lang.Symbol/intern s))
+              (clojure.lang.Compiler/resolveSymbol sym)),
+            (current-ns [] (deref clojure.lang.RT/CURRENT_NS)),
+            (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw)),
+            (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw)),
+            (symbol-intern [s] (clojure.lang.Symbol/intern s)),
+            (register-arg [n]
+              (let [argsyms (deref ARG_ENV)]
+                (if (nil? argsyms)
+                  (throw (IllegalArgumentException. "arg literal not in #()"))
+                  (let [ret (.valAt argsyms n)]
+                    (if (nil? ret)
+                      (let [ret (garg n)]
+                        (.set ARG_ENV (assoc argsyms n ret))
+                        ret)
+                      ret))))),
+            (push-thread-bindings [map]
+              (clojure.lang.Var/pushThreadBindings map)),
+            (pop-thread-bindings [] (clojure.lang.Var/popThreadBindings)),
+            (special-form? [form] (clojure.lang.Compiler/isSpecial form)),
+            ;
+            (reader-exception [ln msg]
+              (clojure.lang.LispReader$ReaderException. ln msg)),
+            (regex-reader [rdr doublequote]
+              ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
+            (eval-reader [] (clojure.lang.LispReader$EvalReader.))
+            (read-delimited-list [delim rdr recur?]
+              (clojure.lang.LispReader/readDelimitedList delim rdr recur?))
+            ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (get-dispatch-macro [ch]
               (condp = (char ch)
                 \^ meta-reader 
@@ -72,28 +92,11 @@
                 \" regex-reader
                 \( fn-reader
                 \{ set-reader
-                \= (clojure.lang.LispReader$EvalReader.)
+                \= (eval-reader)
                 \! coment-reader
                 \< unreadable-reader
                 \_ discard-reader
-                nil)),
-            (read-delimited-list [delim rdr recur?]
-              (clojure.lang.LispReader/readDelimitedList delim rdr recur?)),
-            (register-arg [n]
-              (clojure.lang.LispReader/registerArg n))
-            (reader-exception [ln msg]
-              (clojure.lang.LispReader$ReaderException. ln msg))
-            (empty-map []
-              clojure.lang.PersistentHashMap/EMPTY)
-            (push-thread-bindings [map]
-              (clojure.lang.Var/pushThreadBindings map))
-            (pop-thread-bindings []
-              (clojure.lang.Var/popThreadBindings))
-            (special-form? [form]
-              (clojure.lang.Compiler/isSpecial form))
-            (regex-reader [rdr doublequote]
-              ((clojure.lang.LispReader$RegexReader.) rdr (char doublequote)))
-            ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                nil))
             (fn-reader [rdr lparen]
               (letfn [(hiarg [i args hiarg argsyms]
                         (if (> (inc hiarg) i)
@@ -424,7 +427,6 @@
                           (.intValue (register-arg n))))))))),
             (dispatch-reader [rdr hash]
               (let [ch (.read rdr)]
-                ;(p (format "dispatch-reader %c" (char ch)))
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
                   (let [fn (get-dispatch-macro ch)]
@@ -545,7 +547,6 @@
                 (if (.isEmpty list)
                   ()
                   (let [s (clojure.lang.PersistentList/create list)]
-                    ;(p s)
                     (if (not (= -1 line))
                       (.withMeta s {:line line})
                       s))))),

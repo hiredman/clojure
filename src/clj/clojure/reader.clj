@@ -48,12 +48,12 @@
             (+ [x y] (. clojure.lang.Numbers (add x y)))
             (nil? [x] (if (= x nil) true false))
             (format [fmt & args] (String/format fmt (.toArray args)))
-            ;(symbol? [o] (instance? clojure.lang.Symbol o))
-            ;(keyword? [o] (instance? clojure.lang.Keyword o))
-            ;(map? [o] (instance? clojure.lang.IPersistentMap o))
-            ;(string? [o] (instance? String o))
-            ;(namespace [o] (.getNamespace o))
-            ;(with-meta [o m] (.withMeta o m))
+            (symbol? [o] (instance? clojure.lang.Symbol o))
+            (keyword? [o] (instance? clojure.lang.Keyword o))
+            (map? [o] (instance? clojure.lang.IPersistentMap o))
+            (string? [o] (instance? String o))
+            (namespace [o] (.getNamespace o))
+            (with-meta [o m] (.withMeta o m))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
@@ -119,21 +119,19 @@
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
             (get-macro* [ch]
               (clojure.lang.LispReader/getMacro (int ch)))
-            ;(read-delimited-list [delim rdr recur?]
-              ;(p "read-delimited-list")
-              ;(clojure.lang.LispReader/readDelimitedList delim rdr recur?))
-            ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (read-delimited-list [delim rdr recur?]
+              ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
+            ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (read-delimited-list- [delim rdr recur?]
               (p (format "read-delimited-list %s %s %s" (.toString delim) (.toString rdr) (.toString recur?)))
               (let [a (array-list)]
                 (loop [ch (.read rdr)]
+                (p (format "read-delimited-list pass %s" (.toString a)))
                   (if (whitespace? ch)
                     (recur (.read rdr))
                     (do (eof-guard ch (Exception. "EOF while reading"))
-                      (p (format "%s %s" delim (char ch)))
                       (if (.equals delim (char ch))
-                        (do (p a)
-                          a)
+                          a
                         (let [macro-fn (get-macro ch)]
                           (if (not (nil? macro-fn))
                             (let [mret (macro-fn rdr (char ch))]
@@ -192,7 +190,8 @@
                     (regex (.toString sb))))))
             (get-dispatch-macro [ch]
               (condp = (char ch)
-                \^ meta-reader 
+                \^ (clojure.lang.LispReader$MetaReader.) 
+                ;\^ meta-reader 
                 \' var-reader
                 \" regex-reader
                 \( fn-reader
@@ -347,13 +346,14 @@
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
               (condp = (char ch)
-                \" string-reader
-                \; coment-reader
-                \' (wrapping-reader 'quote)
-                \@ (wrapping-reader 'clojure.core/deref)
-                \^ (wrapping-reader 'clojure.core/meta)
+                ;\" string-reader
+                ;\; coment-reader
+                ;\' (wrapping-reader 'quote)
+                ;\@ (wrapping-reader 'clojure.core/deref)
+                ;\^ (wrapping-reader 'clojure.core/meta)
                 ;\` syntax-quote-reader 
                 ;\~ unquote-reader
+                \# dispatch-reader
                 \( list-reader
                 (get-macro* ch)))
             (get-macro- [ch]
@@ -492,7 +492,7 @@
                             (BigInteger. (.group m 1))
                             (BigInteger. (.group m 2)))))))))),
             (var-reader [rdr quo]
-              (p "var-reader")
+              ;(p "var-reader")
               (list 'var (read rdr true nil true))),
             (unmatched-delimited-reader [rdr rightdelim]
               (throw
@@ -525,7 +525,7 @@
               (read rdr true nil true)
               rdr)
             (coment-reader [rdr semicolon]
-              (p "coment-reader")
+              ;(p "coment-reader")
               (loop [ch (.read rdr)]
                 (if (and (not (= -1 (int ch)))
                          (not (= (char ch) \newline))
@@ -533,7 +533,7 @@
                   (recur (.read rdr))
                   rdr)))
             (string-reader [rdr doublequote]
-              (p "string reader")
+              ;(p "string reader")
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (= (char ch) \")
@@ -617,14 +617,14 @@
             (vector-reader [rdr leftparen]
               (clojure.lang.LazilyPersistentVector/create (read-delimited-list \] rdr true)))
             (list-reader [rdr leftparen]
-              (p "list-reader")
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)
-                    list (read-delimited-list \) rdr true)]
+                    list (read-delimited-list- \) rdr true)]
                 (if (.isEmpty list)
                   ()
                   (let [s (clojure.lang.PersistentList/create list)]
+                    (p (format "list-reader %s" (.toString s)))
                     (if (not (= -1 line))
                       (.withMeta s {:line line})
                       s))))),
@@ -679,6 +679,7 @@
                 ["null" "null"])]
     (p (format "%s : %s" a b))
     x))))
+
 
 (when *compile-files*
   (with-open [file (-> "reader/reader.properties" java.io.File.

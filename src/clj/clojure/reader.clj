@@ -53,7 +53,7 @@
             (map? [o] (instance? clojure.lang.IPersistentMap o))
             (string? [o] (instance? String o))
             (namespace [o] (.getNamespace o))
-            (with-meta [o m] (.withMeta o m))
+            (with-meta [o m] (pre-post-p "enter with-meta" "exit with-meta" (.withMeta o m)))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
@@ -190,8 +190,8 @@
                     (regex (.toString sb))))))
             (get-dispatch-macro [ch]
               (condp = (char ch)
-                \^ (clojure.lang.LispReader$MetaReader.) 
-                ;\^ meta-reader 
+                ;\^ (clojure.lang.LispReader$MetaReader.) 
+                \^ meta-reader 
                 \' var-reader
                 \" regex-reader
                 \( fn-reader
@@ -206,22 +206,28 @@
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)
-                    meta (let [meta (read rdr true nil true)]
-                           (if (or (symbol? meta)
-                                   (keyword? meta)
-                                   (string? meta))
-                             {:tag meta}
-                             (if (not (map? meta))
-                               (throw (IllegalArgumentException. "Metadata must be  Symbol, Keyword, String, or Map"))
-                               meta)))
-                    o (read rdr true nil true)]
-                (let [meta (if (and (instance? clojure.lang.ISeq o) (not (= -1 line)))
-                             (assoc meta :line line))]
-                  (if (instance? clojure.lang.IMeta o)
-                    (if (instance? clojure.lang.IReference o)
-                      (reset-meta! o meta)
-                      (with-meta o meta))
-                    (throw (IllegalArgumentException. "Metadata can only be applied to IMetas"))))))
+                    meta (read rdr true nil true)]
+                (letfn [(meta-tag [meta line] (meta-map {:tag meta} line))
+                        (meta-map [meta line]
+                          (let [o (read rdr true nil true)]
+                            (if (instance? clojure.lang.IMeta o)
+                              (if (and (not (= -1 line)) (instance? clojure.lang.ISeq o))
+                                (line-meta-data o meta line)
+                                (add-meta o meta))
+                              (throw (IllegalArgumentException. "Metadata can only be applied to IMetas")))))
+                        (line-meta-data [obj meta line]
+                          (add-meta obj (assoc meta :line line)))
+                        (add-meta [obj meta]
+                          (if (instance? clojure.lang.IReference obj)
+                            (do (reset-meta! obj meta) obj)
+                            (with-meta obj meta)))]
+                  (if (or (symbol? meta)
+                          (keyword? meta)
+                          (string? meta))
+                    (meta-tag meta line)
+                    (if (not (map? meta))
+                      (throw (IllegalArgumentException. "Metadata must be a Symbol, Keyword, or Map"))
+                      (meta-map meta line))))))
             (character? [ch] (instance? Character ch))
             ;(p [x] (when *trace-reader* (.println System/err (to-string x))))
             (unquote? [form]

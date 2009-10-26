@@ -27,8 +27,13 @@
         (.toArray x#)
         (.toArray [])))))
 
+(defmacro type-info [x]
+  `(let [x# ~x
+         [a# b#] (if x# [(.toString x#) (.toString (.getClass x#))] ["null" "null"])]
+     (p! (~'format "%s : %s" a# b#))))
+
 (defn- readI [rdr eof-is-error? eof-value recursive?]
-  (.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
+  ;(.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
   (let [regex (fn [s] (java.util.regex.Pattern/compile s))
         intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
@@ -135,11 +140,13 @@
                         (let [macro-fn (get-macro ch)]
                           (if (not (nil? macro-fn))
                             (let [mret (macro-fn rdr (char ch))]
+                              (type-info mret)
                               (when (not (identical? rdr mret))
                                 (.add a mret))
                               (recur (.read rdr)))
                             (do (.unread rdr ch)
                               (let [o (read rdr true nil recur?)]
+                                (type-info o)
                                 (when (not (identical? rdr o))
                                   (.add a o))
                                 (recur (.read rdr))))))))))))
@@ -174,7 +181,7 @@
                                 (throw (Exception. (format "Can't resolve %s" (.toString fs))))))))))
                     (throw (IllegalArgumentException. "Unsupported #= form"))))))
             (regex-reader [rdr doublequote]
-              (p "regex-reader")
+              (p! "regex-reader")
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (not (= (char ch) \"))
@@ -190,7 +197,6 @@
                     (regex (.toString sb))))))
             (get-dispatch-macro [ch]
               (condp = (char ch)
-                ;\^ (clojure.lang.LispReader$MetaReader.) 
                 \^ meta-reader 
                 \' var-reader
                 \" regex-reader
@@ -207,6 +213,7 @@
                            (.getLineNumber rdr)
                            -1)
                     meta (read rdr true nil true)]
+                (p (format "meta-reader %s" (.toString meta)))
                 (letfn [(meta-tag [meta line] (meta-map {:tag meta} line))
                         (meta-map [meta line]
                           (let [o (read rdr true nil true)]
@@ -229,7 +236,6 @@
                       (throw (IllegalArgumentException. "Metadata must be a Symbol, Keyword, or Map"))
                       (meta-map meta line))))))
             (character? [ch] (instance? Character ch))
-            ;(p [x] (when *trace-reader* (.println System/err (to-string x))))
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
@@ -352,9 +358,9 @@
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
               (condp = (char ch)
-                ;\" string-reader
-                ;\; coment-reader
-                ;\' (wrapping-reader 'quote)
+                \" string-reader
+                \; coment-reader
+                \' (wrapping-reader 'quote)
                 ;\@ (wrapping-reader 'clojure.core/deref)
                 ;\^ (wrapping-reader 'clojure.core/meta)
                 ;\` syntax-quote-reader 
@@ -683,7 +689,7 @@
         [a b] (if x
                 [(.toString x) (.toString (.getClass x))]
                 ["null" "null"])]
-    (p (format "%s : %s" a b))
+    (p! (format "%s : %s" a b))
     x))))
 
 

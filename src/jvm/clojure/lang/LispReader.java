@@ -1016,42 +1016,40 @@ public static class UnreadableReader extends AFn{
 	}
 }
 
+public static class DelimitedListReader extends AFn {
+  public Object invoke (Object delimO, Object rdrO, Object recurO) throws Exception {
+    PushbackReader rdr = (PushbackReader) rdrO;
+    char delim = (Character) delimO;
+    boolean recur = (Boolean) recurO;
+    ArrayList a = new ArrayList();
+    for(;;) {
+      int ch = rdr.read();
+      while(isWhitespace(ch))
+        ch = rdr.read();
+      if(ch == -1)
+        throw new Exception("EOF while reading");
+      if(ch == delim)
+        break;
+      IFn macroFn = getMacro(ch);
+      if(macroFn != null){
+        Object mret = macroFn.invoke(rdr, (char) ch);
+        if(mret != rdr)
+          a.add(mret);
+      } else {
+        rdr.unread(ch);
+        Object o = RT.read(rdr, true, null, recur);
+        if(o != rdr)
+          a.add(o);
+      }
+    }
+    return a;
+  }
+}
+
 public static List readDelimitedList(char delim, PushbackReader r, boolean isRecursive) throws Exception{
-	ArrayList a = new ArrayList();
-
-	for(; ;)
-		{
-		int ch = r.read();
-
-		while(isWhitespace(ch))
-			ch = r.read();
-
-		if(ch == -1)
-			throw new Exception("EOF while reading");
-
-		if(ch == delim)
-			break;
-
-		IFn macroFn = getMacro(ch);
-		if(macroFn != null)
-			{
-			Object mret = macroFn.invoke(r, (char) ch);
-			//no op macros return the reader
-			if(mret != r)
-				a.add(mret);
-			}
-		else
-			{
-			unread(r, ch);
-
-			Object o = RT.read(r, true, null, isRecursive);
-			if(o != r)
-				a.add(o);
-			}
-		}
-
-
-	return a;
+  IFn a = new DelimitedListReader();
+  List b = (List) a.invoke(delim, r, isRecursive);
+  return b;
 }
 
 /*

@@ -159,15 +159,9 @@
             (arg-reader [rdr pct]
                (p "ARG-READER")
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
-            (read-delimited-list- [delim rdr recur?]
-              (p "READ-DELIMITED-LIST")
-              ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
             (syntax-quote-reader [a b]
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
-            (unquote-reader- [a b]
-              (p "UNQUOTE-READER")
-              ((clojure.lang.LispReader$UnquoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (read-delimited-list [delim rdr recur?]
               (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
@@ -290,7 +284,7 @@
                                                         0
                                                         (- (.length sym) 1))
                                             (next-id)))),
-                                (sreturn [sym] (list 'clojure.core/quote sym))
+                                (sreturn [sym] (list 'quote sym))
                                 (symbol-stuff []
                                   (if (and (nil? (namespace form))
                                            (.endsWith (name form) "#"))
@@ -659,7 +653,7 @@
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)
-                    list (read-delimited-list- \) rdr true)]
+                    list (read-delimited-list \) rdr true)]
                 (if (.isEmpty list)
                   ()
                   (let [s (clojure.lang.PersistentList/create list)]

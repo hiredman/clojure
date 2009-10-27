@@ -3,7 +3,7 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 
-(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings)]
+(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count)]
   (ns-unmap *ns* sym))
 
 ;java stuff
@@ -72,7 +72,7 @@
 
 (defmacro next-id [] `(clojure.lang.RT/nextID))
 
-
+(defmacro count [x] `(clojure.lang.RT/count ~x))
 ;reader stuff
 (defmacro get-class [x] `(.getClass ~x))
 
@@ -118,7 +118,6 @@
         ARG_ENV (create-var nil)]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (eq [a b] (= a b))
-            (count [x] (clojure.lang.RT/count x))
             (> [a b] (clojure.lang.Numbers/gt a b))
             (not [x] (if x false true))
             (inc [x] (clojure.lang.Numbers/inc x))

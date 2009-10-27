@@ -3,24 +3,13 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 
-(doseq [sym '(read = name namespace with-meta map?)]
+(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings)]
   (ns-unmap *ns* sym))
 
-(defmacro = [a b]
-  `(clojure.lang.Util/equiv ~a ~b))
+;java stuff
+(defmacro to-string [x] `(.toString ~x))
 
-(defmacro eof-guard [ch e]
-  `(when (= -1 (int ~ch))
-     (throw ~e)))
-
-(defmacro to-string [x]
-  `(.toString ~x))
-
-(defmacro create-var [x]
-  `(clojure.lang.Var/create ~x))
-
-(defmacro regex [x]
-  `(java.util.regex.Pattern/compile ~x))
+(defmacro regex [x] `(java.util.regex.Pattern/compile ~x))
 
 (defmacro name [x] `(.getName ~x))
 
@@ -28,9 +17,7 @@
 
 (defmacro with-meta [o m] `(.withMeta ~o ~m))
 
-(defmacro next-id [] `(clojure.lang.RT/nextID))
-
-(defmacro numbers-reduce [n] `(clojure.lang.Numbers/reduce ~n))
+(defmacro val-at [a b] `(.valAt ~a ~b))
 
 (defmacro array-list [] `(java.util.ArrayList.))
 (defmacro add [a b] `(.add ~a ~b))
@@ -38,7 +25,14 @@
 (defmacro string-builder [] `(StringBuilder.))
 (defmacro append [a b] `(.append ~a ~b))
 
+(defmacro dot-read [rdr] `(.read ~rdr))
+
+(defmacro dot-unread [rdr ch] `(.unread ~rdr ~ch))
+
+;clojure.lang.*
 (defmacro class-for-name [name] `(clojure.lang.RT/classForName ~name))
+
+(defmacro = [a b] `(clojure.lang.Util/equiv ~a ~b))
 
 (defmacro invoke-constructor [class args] `(clojure.lang.Reflector/invokeConstructor ~class ~args))
 
@@ -52,14 +46,47 @@
 
 (defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
 
-(defmacro val-at [a b] `(.valAt ~a ~b))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defmacro suppressed-read? [] '(clojure.lang.RT/suppressRead))
+
+(defmacro numbers-reduce [n] `(clojure.lang.Numbers/reduce ~n))
+
+(defmacro numbers-divide [n d] `(clojure.lang.Numbers/divide ~n ~d))
+
+(defmacro current-ns [] `(deref clojure.lang.RT/CURRENT_NS))
+
+(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
+
+(defmacro keyword-intern<2> [ns kw] `(clojure.lang.Keyword/intern ~ns ~kw))
+
+(defmacro keyword-intern<1> [kw] `(clojure.lang.Keyword/intern ~kw))
+
+(defmacro symbol-intern [s] `(clojure.lang.Symbol/intern ~s))
+
+(defmacro push-thread-bindings [map] `(clojure.lang.Var/pushThreadBindings ~map))
+
+(defmacro pop-thread-bindings [] `(clojure.lang.Var/popThreadBindings))
+
+(defmacro reader-exception [ln msg] `(clojure.lang.RT$ReaderException. ~ln ~msg))
+
+(defmacro create-var [x] `(clojure.lang.Var/create ~x))
+
+(defmacro next-id [] `(clojure.lang.RT/nextID))
+
+
+;reader stuff
+(defmacro get-class [x] `(.getClass ~x))
+
+(defmacro println-to-error [string] `(.println System/err ~string))
+
+(defmacro eof-guard [ch e]
+  `(when (= -1 (int ~ch))
+     (throw ~e)))
 
 (defmacro p [thing]
-  `(when *trace-reader* (.println System/err (to-string ~thing))))
+  `(when *trace-reader* (println-to-error (to-string ~thing))))
 
 (defmacro p! [thing]
-  `(.println System/err (to-string ~thing)))
+  `(println-to-error (to-string ~thing)))
 
 (defmacro pre-post-p [pre post & body]
   `(do
@@ -77,7 +104,7 @@
 
 (defmacro type-info [x]
   `(let [x# ~x
-         [a# b#] (if x# [(to-string x#) (to-string (.getClass x#))] ["null" "null"])]
+         [a# b#] (if x# [(to-string x#) (to-string (get-class x#))] ["null" "null"])]
      (p (~'format "%s : %s" a# b#))
      x#))
 
@@ -123,19 +150,7 @@
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
-            (suppressed-read? [] (clojure.lang.RT/suppressRead)),
-            (numbers-divide [n d] (clojure.lang.Numbers/divide n d)),
-            (resolve-symbol [sym] (clojure.lang.Compiler/resolveSymbol sym)),
-            (current-ns [] (deref clojure.lang.RT/CURRENT_NS)),
-            (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw)),
-            (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw)),
-            (symbol-intern [s] (clojure.lang.Symbol/intern s)),
-            (push-thread-bindings [map] (clojure.lang.Var/pushThreadBindings map)),
-            (pop-thread-bindings [] (clojure.lang.Var/popThreadBindings)),
             ;
-            (reader-exception [ln msg]
-              (p "READER-EXCEPTION")
-              (clojure.lang.LispReader$ReaderException. ln msg)),
             (fn-reader [rdr lparen]
               (p "FN-READER")
               ((clojure.lang.LispReader$FnReader.) rdr (char lparen)))
@@ -155,9 +170,9 @@
             (read-delimited-list- [delim rdr recur?]
               (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
               (let [a (array-list)]
-                (loop [ch (.read rdr)]
+                (loop [ch (dot-read rdr)]
                   (if (whitespace? ch)
-                    (recur (.read rdr))
+                    (recur (dot-read rdr))
                     (do (eof-guard ch (Exception. "EOF while reading"))
                       (if (.equals delim (char ch))
                           a
@@ -166,12 +181,12 @@
                             (let [mret (macro-fn rdr (char ch))]
                               (when (not (identical? rdr mret))
                                 (add a mret))
-                              (recur (.read rdr)))
-                            (do (.unread rdr ch)
+                              (recur (dot-read rdr)))
+                            (do (dot-unread rdr ch)
                               (let [o (read rdr true nil recur?)]
                                 (when (not (identical? rdr o))
                                   (add a o))
-                                (recur (.read rdr))))))))))))
+                                (recur (dot-read rdr))))))))))))
             (eval-reader [rdr eq]
               (p "eval-reader")
               (when (not *read-eval*)
@@ -205,17 +220,17 @@
             (regex-reader [rdr doublequote]
               (p "REGEX-READER")
               (let [sb (string-builder)]
-                (loop [ch (.read rdr)]
+                (loop [ch (dot-read rdr)]
                   (if (not (= (char ch) \"))
                     (if (= (int ch) -1)
                       (throw (Exception. "EOF while reading regex"))
                       (do (append sb (char ch))
                         (when (= (char ch) \\)
-                          (let [ch (.read rdr)]
+                          (let [ch (dot-read rdr)]
                             (when (= (int ch) -1)
                               (throw (Exception. "EOF while reading regex")))
                             (append sb (char ch))))
-                        (recur (.read rdr))))
+                        (recur (dot-read rdr))))
                     (regex (to-string sb))))))
             (get-dispatch-macro [ch]
               (condp eq (char ch)
@@ -398,7 +413,7 @@
                 nil)),
             (character-reader [rdr backslash]
               (p "CHARACTER-READER")
-              (let [ch (.read rdr)]
+              (let [ch (dot-read rdr)]
                 (eof-guard ch (Exception. "EOF while reading character"))
                 (let [token (read-token rdr ch)]
                   (if (= 1 (.length token))
@@ -450,11 +465,11 @@
                   (loop [i 1 uc uc]
                     (if (< i length)
                       (break uc i length exact)
-                      (let [ch (.read rdr)]
+                      (let [ch (dot-read rdr)]
                         (if (or (= -1 (int ch))
                                 (whitespace? ch)
                                 (macro? ch))
-                          (do (.unread rdr ch)
+                          (do (dot-unread rdr ch)
                             (break uc i length exact))
                           (let [d (Character/digit ch base)]
                             (if (= -1 d)
@@ -523,7 +538,7 @@
             (whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch)))),
             (dispatch-reader [rdr hash]
               (p "DISPATCH-READER")
-              (let [ch (.read rdr)]
+              (let [ch (dot-read rdr)]
               (p (format "read ch %c previous ch %c" (char ch) (char hash)))
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
@@ -532,13 +547,13 @@
                       (throw (Exception. (format "No dispatch macro for: %c" (char ch))))
                       (fn rdr ch)))))),
             (unquote-reader [rdr comma]
-              (let [ch (.read rdr)]
+              (let [ch (dot-read rdr)]
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
                   (if (= (char ch) \@)
                     (let [o (read rdr true nil true)]
                       (list 'clojure.core/unquote-splicing o))
-                    (do (.unread rdr ch)
+                    (do (dot-unread rdr ch)
                       (list 'clojure.core/unquote (read rdr true nil true))))))),
             (wrapping-reader [sym]
               (fn [rdr quo]
@@ -549,17 +564,17 @@
               rdr)
             (coment-reader [rdr semicolon]
               (p "COMENT-READER")
-              (loop [ch (.read rdr)]
+              (loop [ch (dot-read rdr)]
                 (if (and (not (= -1 (int ch)))
                          (not (= (char ch) \newline))
                          (not (= (char ch) \return)))
-                  (recur (.read rdr))
+                  (recur (dot-read rdr))
                   rdr)))
             (string-reader [rdr doublequote]
               (p "STRING-READER")
               (let [sb (string-builder)]
                 (letfn [(read-escaped-character-into [sb rdr]
-                          (let [ch (.read rdr)]
+                          (let [ch (dot-read rdr)]
                             (if (or (= \\ (char ch))
                                     (= \" (char ch)))
                               (append sb (char ch))
@@ -577,15 +592,15 @@
                                         (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
                                         ch))
                                     (throw (Exception. (format "Unsupported escape character: %c%c" \\ (char ch))))))))))]
-                  (loop [ch (.read rdr)]
+                  (loop [ch (dot-read rdr)]
                     (eof-guard ch (Exception. "EOF while reading string"))
                     (if (= \" (char ch))
                       (to-string sb)
                       (if (= \\ (char ch))
                         (do (read-escaped-character-into sb rdr)
-                          (recur (.read rdr)))
+                          (recur (dot-read rdr)))
                         (do (append sb (char ch))
-                          (recur (.read rdr))))))))),
+                          (recur (dot-read rdr))))))))),
             (garg [n]
               (symbol (str (if (= -1 n) "rest" (str "p" n)) "__" (next-id)))),
             (terminating-macro? [ch]
@@ -607,30 +622,30 @@
               (p "READ-TOKEN")
               (let [sb (string-builder)]
                 (append sb (char ch))
-                (loop [ch (.read rdr)]
+                (loop [ch (dot-read rdr)]
                   (if (or (= (int ch) -1)
                           (whitespace? ch)
                           (terminating-macro? ch))
-                    (do (.unread rdr ch)
+                    (do (dot-unread rdr ch)
                       (to-string sb))
                     (do (append sb (char ch))
-                      (recur (.read rdr))))))),
+                      (recur (dot-read rdr))))))),
             (read-number [rdr initch]
               (p "READ-NUMBER")
               (let [sb (string-builder)]
                 (append sb (char initch))
-                (loop [ch (.read rdr)]
+                (loop [ch (dot-read rdr)]
                   (if (or (= (int ch) -1)
                           (whitespace? ch)
                           (macro? ch))
-                    (do (.unread rdr ch)
+                    (do (dot-unread rdr ch)
                       (let [s (to-string sb)
                             n (match-number s)]
                         (if (nil? n)
                           (throw (NumberFormatException. (format "Invalid number: %s" s)))
                           n)))
                     (do (append sb (char ch))
-                      (recur (.read rdr)))))))
+                      (recur (dot-read rdr)))))))
             (map-reader [rdr leftparen]
               (let [x (clojure.lang.RT/map (.toArray (read-delimited-list \} rdr true)))]
                 x)),
@@ -653,9 +668,9 @@
             (read [rdr eof-error? eof-value recursive?]
               (p "READ")
               (try
-                (loop [ch (.read rdr)]
+                (loop [ch (dot-read rdr)]
                   (if (whitespace? ch)
-                    (recur (.read rdr))
+                    (recur (dot-read rdr))
                     (if (= -1 (int ch))
                       (if eof-error?
                         (throw (Exception. "EOF while reading"))
@@ -671,18 +686,18 @@
                               (if (suppressed-read?)
                                 nil
                                 (if (identical? ret rdr)
-                                  (recur (.read rdr))
+                                  (recur (dot-read rdr))
                                   ret)))
                             (if (or (= (char ch) \+)
                                     (= (char ch) \-))
-                              (let [ch2 (.read rdr)]
+                              (let [ch2 (dot-read rdr)]
                                 (if (Character/isDigit ch2)
-                                  (do (.unread rdr ch2)
+                                  (do (dot-unread rdr ch2)
                                     (let [n (read-number rdr ch)]
                                       (if (suppressed-read?)
                                         nil
                                         n)))
-                                  (do (.unread rdr ch2)
+                                  (do (dot-unread rdr ch2)
                                     (read-token-sub rdr ch))))
                               (read-token-sub rdr ch))))))))
                 (catch Exception e

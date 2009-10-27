@@ -3,7 +3,7 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 
-(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count)]
+(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count list)]
   (ns-unmap *ns* sym))
 
 ;java stuff
@@ -73,6 +73,9 @@
 (defmacro next-id [] `(clojure.lang.RT/nextID))
 
 (defmacro count [x] `(clojure.lang.RT/count ~x))
+
+(defmacro list [& foo] `(clojure.lang.RT/list ~@foo))
+
 ;reader stuff
 (defmacro get-class [x] `(.getClass ~x))
 
@@ -156,7 +159,7 @@
             (arg-reader [rdr pct]
                (p "ARG-READER")
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
-            (read-delimited-list [delim rdr recur?]
+            (read-delimited-list- [delim rdr recur?]
               (p "READ-DELIMITED-LIST")
               ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
             (syntax-quote-reader [a b]
@@ -166,14 +169,14 @@
               (p "UNQUOTE-READER")
               ((clojure.lang.LispReader$UnquoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (read-delimited-list- [delim rdr recur?]
+            (read-delimited-list [delim rdr recur?]
               (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
               (let [a (array-list)]
                 (loop [ch (dot-read rdr)]
                   (if (whitespace? ch)
                     (recur (dot-read rdr))
                     (do (eof-guard ch (Exception. "EOF while reading"))
-                      (if (.equals delim (char ch))
+                      (if (= delim (char ch))
                           a
                         (let [macro-fn (get-macro ch)]
                           (if (not (nil? macro-fn))

@@ -4954,7 +4954,7 @@ public static Object load(Reader rdr, String sourcePath, String sourceName) thro
 			LINE_BEFORE.set(pushbackReader.getLineNumber());
 			}
 		}
-	catch(LispReader.ReaderException e)
+	catch(RT.ReaderException e)
 		{
 		throw new CompilerException(sourceName, e.line, e.getCause());
 		}
@@ -5126,7 +5126,7 @@ public static Object compile(Reader rdr, String sourcePath, String sourceName) t
 
 		writeClassFile(fn.internalName, cw.toByteArray());
 		}
-	catch(LispReader.ReaderException e)
+	catch(RT.ReaderException e)
 		{
 		throw new CompilerException(sourceName, e.line, e.getCause());
 		}

@@ -30,10 +30,13 @@
 (defmacro type-info [x]
   `(let [x# ~x
          [a# b#] (if x# [(.toString x#) (.toString (.getClass x#))] ["null" "null"])]
-     (p! (~'format "%s : %s" a# b#))))
+     (p! (~'format "%s : %s" a# b#))
+     x#))
 
-(defn- readI [rdr eof-is-error? eof-value recursive?]
-  ;(.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
+(ns-unmap *ns* 'read)
+
+(defn read [rdr eof-is-error? eof-value recursive?]
+  (.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
   (let [regex (fn [s] (java.util.regex.Pattern/compile s))
         intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
@@ -128,10 +131,10 @@
               ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (read-delimited-list- [delim rdr recur?]
-              (p (format "read-delimited-list %s %s %s" (.toString delim) (.toString rdr) (.toString recur?)))
+              (p (format "READ-DELIMITED-LIST %s %s %s" (.toString delim) (.toString rdr) (.toString recur?)))
               (let [a (array-list)]
                 (loop [ch (.read rdr)]
-                (p (format "read-delimited-list pass %s" (.toString a)))
+                ;(p (format "read-delimited-list pass %s" (.toString a)))
                   (if (whitespace? ch)
                     (recur (.read rdr))
                     (do (eof-guard ch (Exception. "EOF while reading"))
@@ -140,13 +143,13 @@
                         (let [macro-fn (get-macro ch)]
                           (if (not (nil? macro-fn))
                             (let [mret (macro-fn rdr (char ch))]
-                              (type-info mret)
+                              ;(type-info mret)
                               (when (not (identical? rdr mret))
                                 (.add a mret))
                               (recur (.read rdr)))
                             (do (.unread rdr ch)
                               (let [o (read rdr true nil recur?)]
-                                (type-info o)
+                                ;(type-info o)
                                 (when (not (identical? rdr o))
                                   (.add a o))
                                 (recur (.read rdr))))))))))))
@@ -181,7 +184,7 @@
                                 (throw (Exception. (format "Can't resolve %s" (.toString fs))))))))))
                     (throw (IllegalArgumentException. "Unsupported #= form"))))))
             (regex-reader [rdr doublequote]
-              (p! "regex-reader")
+              (p! "REGEX-READER")
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (not (= (char ch) \"))
@@ -357,12 +360,13 @@
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
+              ;(p! (char ch))
               (condp = (char ch)
-                \" string-reader
+                ;\" string-reader
                 \; coment-reader
                 \' (wrapping-reader 'quote)
-                ;\@ (wrapping-reader 'clojure.core/deref)
-                ;\^ (wrapping-reader 'clojure.core/meta)
+                \@ (wrapping-reader 'clojure.core/deref)
+                \^ (wrapping-reader 'clojure.core/meta)
                 ;\` syntax-quote-reader 
                 ;\~ unquote-reader
                 \# dispatch-reader
@@ -514,12 +518,13 @@
             (dispatch-reader [rdr hash]
               (p "DISPATCH-READER")
               (let [ch (.read rdr)]
+              (p (format "read ch %c previous ch %c" (char ch) (char hash)))
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
                   (let [fn (get-dispatch-macro ch)]
                     (if (nil? fn)
                       (throw (Exception. (format "No dispatch macro for: %c" (char ch))))
-                      (fn rdr ch)))))),
+                      (type-info (fn rdr ch))))))),
             (unquote-reader [rdr comma]
               (let [ch (.read rdr)]
                 (if (= (int ch) -1)
@@ -537,7 +542,7 @@
               (read rdr true nil true)
               rdr)
             (coment-reader [rdr semicolon]
-              ;(p "coment-reader")
+              (p "COMENT-READER")
               (loop [ch (.read rdr)]
                 (if (and (not (= -1 (int ch)))
                          (not (= (char ch) \newline))
@@ -545,46 +550,33 @@
                   (recur (.read rdr))
                   rdr)))
             (string-reader [rdr doublequote]
-              ;(p "string reader")
+              (p "STRING-READER")
               (let [sb (string-builder)]
-                (loop [ch (.read rdr)]
-                  (if (= (char ch) \")
-                    (to-string sb)
-                    (do
-                     (append sb
-                      (if (= (int ch) -1)
-                        (throw (Exception. "EOF while reading string"))
-                        (if (= \\ (char ch))
+                (letfn [(escaped-character [sb rdr]
                           (let [ch (.read rdr)]
-                            (if (= (int ch) -1)
-                              (throw (Exception. "EOF while reading string"))
-                              (if (or (= (char ch) \")
-                                      (= (char ch) \\))
-                                ""
+                            (if (or (= \\ (char ch))
+                                    (= \" (char ch)))
+                              (.append sb (char ch))
+                              (.append sb
                                 (condp = (char ch)
-                                  \t \tab
-                                  \r \return
-                                  \n \newline
-                                  \b \backspace
-                                  \f \formfeed
-                                  \u (let [ch (.read rdr)]
-                                       (if (= -1 (Character/digit (char ch) 16))
-                                         (throw (Exception. (str "Invalid unicode escape: \\u" (char ch))))
-                                         (char (read-unicode-char<pushback> rdr ch 16 4 true))))
-                                  (if (Character/isDigit ch)
-                                    (let [ch (read-unicode-char<pushback> rdr ch 8 3 false)]
-                                      (if (> ch 0377)
-                                        (throw (Exception. "Octal escape sequence must be in range [0, 377]."))
-                                        (char ch)))
-                                    (throw (Exception. (str "Unsupported escape character: " (char ch)))))))))
-                          (char ch))))
-                            (recur (.read rdr))))))),
+                                  \t \tab \r \return \n \newline
+                                  \b \backspace)))))]
+                  (loop [ch (.read rdr)]
+                    (eof-guard ch (Exception. "EOF while reading string"))
+                    (if (= \" (char ch))
+                      (.toString sb)
+                      (if (= \\ (char ch))
+                        (do (read-escaped-character-into sb rdr)
+                          (recur (.read rdr)))
+                        (do (.append sb (char ch))
+                          (recur (.read rdr))))))))),
             (garg [n]
               (symbol (str (if (= -1 n) "rest" (str "p" n)) "__" (next-id)))),
             (terminating-macro? [ch]
               (and (not (= (char ch) \#))
                    (not (nil? (get-macro ch)))))
             (interpret-token [token]
+              (p (format "INTERPRET-TOKEN %s" token))
               (condp = token
                 "nil" nil
                 "true" true
@@ -596,6 +588,7 @@
                     ret
                     (throw (Exception. (format "Invalid token: %s" token))))))),
             (read-token [rdr ch]
+              (p "READ-TOKEN")
               (let [sb (string-builder)]
                 (append sb (char ch))
                 (loop [ch (.read rdr)]
@@ -607,6 +600,7 @@
                     (do (append sb (char ch))
                       (recur (.read rdr))))))),
             (read-number [rdr initch]
+              (p "READ-NUMBER")
               (let [sb (string-builder)]
                 (append sb (char initch))
                 (loop [ch (.read rdr)]
@@ -636,12 +630,12 @@
                 (if (.isEmpty list)
                   ()
                   (let [s (clojure.lang.PersistentList/create list)]
-                    (p (format "list-reader %s" (.toString s)))
                     (if (not (= -1 line))
                       (.withMeta s {:line line})
                       s))))),
             (macro? [ch] (not (nil? (get-macro ch))))
             (read [rdr eof-error? eof-value recursive?]
+              (p "READ")
               (try
                 (loop [ch (.read rdr)]
                   (if (whitespace? ch)
@@ -658,6 +652,8 @@
                         (let [macro-fn (get-macro (int ch))]
                           (if (not (nil? macro-fn))
                             (let [ret (macro-fn rdr (char ch))]
+                              ;(p (format "macro called %c" (char ch)))
+                              (type-info ret)
                               (if (suppressed-read?)
                                 nil
                                 (if (identical? ret rdr)
@@ -685,16 +681,11 @@
                 (if (suppressed-read?)
                   nil
                   (interpret-token token))))]
-  (let [x (pre-post-p "enter reader" "exit reader" (read rdr eof-is-error? eof-value recursive?))
-        [a b] (if x
-                [(.toString x) (.toString (.getClass x))]
-                ["null" "null"])]
-    (p! (format "%s : %s" a b))
-    x))))
+  (read rdr eof-is-error? eof-value recursive?))))
 
 
 (when *compile-files*
   (with-open [file (-> "reader/reader.properties" java.io.File.
                      java.io.FileWriter. java.io.PrintWriter.)]
     (binding [*out* file]
-      (.println *out* (str "reader.name=" (.getName (class readI)))))))
+      (.println *out* (str "reader.name=" (.getName (class read)))))))

@@ -3,15 +3,63 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 
+(doseq [sym '(read = name namespace with-meta map?)]
+  (ns-unmap *ns* sym))
+
+(defmacro = [a b]
+  `(clojure.lang.Util/equiv ~a ~b))
+
 (defmacro eof-guard [ch e]
   `(when (= -1 (int ~ch))
      (throw ~e)))
 
+(defmacro to-string [x]
+  `(.toString ~x))
+
+(defmacro create-var [x]
+  `(clojure.lang.Var/create ~x))
+
+(defmacro regex [x]
+  `(java.util.regex.Pattern/compile ~x))
+
+(defmacro name [x] `(.getName ~x))
+
+(defmacro namespace [x] `(.getNamespace ~x))
+
+(defmacro with-meta [o m] `(.withMeta ~o ~m))
+
+(defmacro next-id [] `(clojure.lang.RT/nextID))
+
+(defmacro numbers-reduce [n] `(clojure.lang.Numbers/reduce ~n))
+
+(defmacro array-list [] `(java.util.ArrayList.))
+(defmacro add [a b] `(.add ~a ~b))
+
+(defmacro string-builder [] `(StringBuilder.))
+(defmacro append [a b] `(.append ~a ~b))
+
+(defmacro class-for-name [name] `(clojure.lang.RT/classForName ~name))
+
+(defmacro invoke-constructor [class args] `(clojure.lang.Reflector/invokeConstructor ~class ~args))
+
+(defmacro invoke-static [class name args] `(clojure.lang.Reflector/invokeStaticMethod ~class ~name ~args))
+
+(defmacro namespace-for [kw] `(clojure.lang.Compiler/namespaceFor ~kw))
+
+(defmacro static-member-name? [x] `(clojure.lang.Compiler/namesStaticMember ~x))
+
+(defmacro map? [o] `(~'instance? clojure.lang.IPersistentMap ~o))
+
+(defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
+
+(defmacro val-at [a b] `(.valAt ~a ~b))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defmacro p [thing]
-  `(when *trace-reader* (.println System/err (.toString ~thing))))
+  `(when *trace-reader* (.println System/err (to-string ~thing))))
 
 (defmacro p! [thing]
-  `(.println System/err (.toString ~thing)))
+  `(.println System/err (to-string ~thing)))
 
 (defmacro pre-post-p [pre post & body]
   `(do
@@ -29,39 +77,32 @@
 
 (defmacro type-info [x]
   `(let [x# ~x
-         [a# b#] (if x# [(.toString x#) (.toString (.getClass x#))] ["null" "null"])]
+         [a# b#] (if x# [(to-string x#) (to-string (.getClass x#))] ["null" "null"])]
      (p (~'format "%s : %s" a# b#))
      x#))
 
-(ns-unmap *ns* 'read)
-
 (defn read [rdr eof-is-error? eof-value recursive?]
   ;(.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
-  (let [regex (fn [s] (java.util.regex.Pattern/compile s))
-        intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
+  (let [intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
         ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
         symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
-        GENSYM_ENV (clojure.lang.Var/create nil)
-        ARG_ENV (clojure.lang.Var/create nil)]
+        GENSYM_ENV (create-var nil)
+        ARG_ENV (create-var nil)]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (= [x y] (clojure.lang.Util/equiv x y))
-            (name [x] (.getName x))
+            (eq [a b] (= a b))
             (count [x] (clojure.lang.RT/count x))
             (> [a b] (clojure.lang.Numbers/gt a b))
             (not [x] (if x false true))
-            (instance? [c x] (.isInstance c x))
             (inc [x] (clojure.lang.Numbers/inc x))
             (* [x y] (. clojure.lang.Numbers (multiply x y)))
             (+ [x y] (. clojure.lang.Numbers (add x y)))
             (nil? [x] (if (= x nil) true false))
             (format [fmt & args] (String/format fmt (.toArray args)))
+            (instance? [c x] (.isInstance c x))
             (symbol? [o] (instance? clojure.lang.Symbol o))
             (keyword? [o] (instance? clojure.lang.Keyword o))
-            (map? [o] (instance? clojure.lang.IPersistentMap o))
             (string? [o] (instance? String o))
-            (namespace [o] (.getNamespace o))
-            (with-meta [o m] (pre-post-p "enter with-meta" "exit with-meta" (.withMeta o m)))
             (character? [ch] (instance? Character ch))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,73 +116,46 @@
                                                            (into-array Class types))
                           (doto (.setAccessible true))
                           (.invoke obj (into-array Object args))))]
-                     (condp = what
+                     (condp eq what
                        :method
                         (apply wall-hack-method args)
                        :field
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
-            (next-id [] (clojure.lang.RT/nextID)),
             (suppressed-read? [] (clojure.lang.RT/suppressRead)),
-            (numbers-reduce [n] (clojure.lang.Numbers/reduce n)),
             (numbers-divide [n d] (clojure.lang.Numbers/divide n d)),
-            (array-list [] (java.util.ArrayList.)),
-            (string-builder [] (StringBuilder.)),
-            (append [sb thing] (.append sb thing)),
-            (namespace-for [kw]
-              (clojure.lang.Compiler/namespaceFor #^clojure.lang.Symbol kw)),
-            (resolve-symbol [sym]
-              (clojure.lang.Compiler/resolveSymbol sym)),
+            (resolve-symbol [sym] (clojure.lang.Compiler/resolveSymbol sym)),
             (current-ns [] (deref clojure.lang.RT/CURRENT_NS)),
             (keyword-intern<2> [ns kw] (clojure.lang.Keyword/intern ns kw)),
             (keyword-intern<1> [kw] (clojure.lang.Keyword/intern kw)),
             (symbol-intern [s] (clojure.lang.Symbol/intern s)),
-            (push-thread-bindings [map]
-              (clojure.lang.Var/pushThreadBindings map)),
+            (push-thread-bindings [map] (clojure.lang.Var/pushThreadBindings map)),
             (pop-thread-bindings [] (clojure.lang.Var/popThreadBindings)),
-            (special-form? [form] (clojure.lang.Compiler/isSpecial form)),
-            (val-at [a b] (.valAt a b)),
-            (to-string [x] (.toString x)),
-            (class-for-name [name]
-              (pre-post-p (format "enter class-for-name %s" (.toString name))
-                          (format "exit class-for-name %s" (.toString name))
-                          (clojure.lang.RT/classForName name)))
-            (invoke-constructor [class args]
-              (pre-post-p (format "enter invoke-constructor %s %s" (.toString class) (if (nil? args) "null" (.toString args)))
-                          (format "exit invoke-constructor %s %s" (.toString class) (if (nil? args) "null" (.toString args)))
-                          (clojure.lang.Reflector/invokeConstructor class args)))
-            (static-member-name? [x]
-              (clojure.lang.Compiler/namesStaticMember x))
-            (invoke-static [class name args]
-              (p "invoke-static")
-              (clojure.lang.Reflector/invokeStaticMethod class name args))
             ;
             (reader-exception [ln msg]
-              (p "reader-exception")
+              (p "READER-EXCEPTION")
               (clojure.lang.LispReader$ReaderException. ln msg)),
             (fn-reader [rdr lparen]
-              (p "fn-reader")
+              (p "FN-READER")
               ((clojure.lang.LispReader$FnReader.) rdr (char lparen)))
             (arg-reader [rdr pct]
-               (p "arg-reader")
+               (p "ARG-READER")
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
-            (get-macro* [ch]
-              (clojure.lang.LispReader/getMacro (int ch)))
             (read-delimited-list [delim rdr recur?]
+              (p "READ-DELIMITED-LIST")
               ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
             (syntax-quote-reader [a b]
+              (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
-            (unquote-reader [a b]
+            (unquote-reader- [a b]
+              (p "UNQUOTE-READER")
               ((clojure.lang.LispReader$UnquoteReader.) a b))
-            (character-reader [a b]
-               ((clojure.lang.LispReader$CharacterReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (read-delimited-list- [delim rdr recur?]
-              (p (format "READ-DELIMITED-LIST %s %s %s" (.toString delim) (.toString rdr) (.toString recur?)))
+              (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
               (let [a (array-list)]
                 (loop [ch (.read rdr)]
-                ;(p (format "read-delimited-list pass %s" (.toString a)))
                   (if (whitespace? ch)
                     (recur (.read rdr))
                     (do (eof-guard ch (Exception. "EOF while reading"))
@@ -150,15 +164,13 @@
                         (let [macro-fn (get-macro ch)]
                           (if (not (nil? macro-fn))
                             (let [mret (macro-fn rdr (char ch))]
-                              ;(type-info mret)
                               (when (not (identical? rdr mret))
-                                (.add a mret))
+                                (add a mret))
                               (recur (.read rdr)))
                             (do (.unread rdr ch)
                               (let [o (read rdr true nil recur?)]
-                                ;(type-info o)
                                 (when (not (identical? rdr o))
-                                  (.add a o))
+                                  (add a o))
                                 (recur (.read rdr))))))))))))
             (eval-reader [rdr eq]
               (p "eval-reader")
@@ -188,7 +200,7 @@
                                       fs)]
                               (if (var? v)
                                 (.applyTo v (next o))
-                                (throw (Exception. (format "Can't resolve %s" (.toString fs))))))))))
+                                (throw (Exception. (format "Can't resolve %s" (to-string fs))))))))))
                     (throw (IllegalArgumentException. "Unsupported #= form"))))))
             (regex-reader [rdr doublequote]
               (p "REGEX-READER")
@@ -204,9 +216,9 @@
                               (throw (Exception. "EOF while reading regex")))
                             (append sb (char ch))))
                         (recur (.read rdr))))
-                    (regex (.toString sb))))))
+                    (regex (to-string sb))))))
             (get-dispatch-macro [ch]
-              (condp = (char ch)
+              (condp eq (char ch)
                 \^ meta-reader 
                 \' var-reader
                 \" regex-reader
@@ -223,7 +235,7 @@
                            (.getLineNumber rdr)
                            -1)
                     meta (read rdr true nil true)]
-                (p (format "meta-reader %s" (.toString meta)))
+                (p (format "meta-reader %s" (to-string meta)))
                 (letfn [(meta-tag [meta line] (meta-map {:tag meta} line))
                         (meta-map [meta line]
                           (let [o (read rdr true nil true)]
@@ -245,7 +257,6 @@
                     (if (not (map? meta))
                       (throw (IllegalArgumentException. "Metadata must be a Symbol, Keyword, or Map"))
                       (meta-map meta line))))))
-            
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
@@ -367,7 +378,7 @@
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
-              (condp = (char ch)
+              (condp eq (char ch)
                 \" string-reader
                 \; coment-reader
                 \' (wrapping-reader 'quote)
@@ -385,19 +396,20 @@
                 \% arg-reader
                 \# dispatch-reader
                 nil)),
-            (character-reader- [rdr backslash]
+            (character-reader [rdr backslash]
+              (p "CHARACTER-READER")
               (let [ch (.read rdr)]
                 (eof-guard ch (Exception. "EOF while reading character"))
                 (let [token (read-token rdr ch)]
                   (if (= 1 (.length token))
                     (Character/valueOf (.charAt token 0))
-                    (condp = token
-                      "newline" \n
+                    (condp eq token
+                      "newline" \newline
                       "space" \space
-                      "tab" \t
-                      "backspace" \b
-                      "formfeed" \f
-                      "return" \r
+                      "tab" \tab
+                      "backspace" \backspace
+                      "formfeed" \formfeed
+                      "return" \return
                       (cond
                         (.startsWith token "u")
                           (let [c (read-unicode-char<string> token 1 4 16)]
@@ -518,20 +530,20 @@
                   (let [fn (get-dispatch-macro ch)]
                     (if (nil? fn)
                       (throw (Exception. (format "No dispatch macro for: %c" (char ch))))
-                      (type-info (fn rdr ch))))))),
-            (unquote-reader- [rdr comma]
+                      (fn rdr ch)))))),
+            (unquote-reader [rdr comma]
               (let [ch (.read rdr)]
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
                   (if (= (char ch) \@)
                     (let [o (read rdr true nil true)]
-                      (clojure.lang.RT/list 'clojure.core/unquote-splicing o))
+                      (list 'clojure.core/unquote-splicing o))
                     (do (.unread rdr ch)
-                      (clojure.lang.RT/list 'clojure.core/unquote (read rdr true nil true))))))),
+                      (list 'clojure.core/unquote (read rdr true nil true))))))),
             (wrapping-reader [sym]
               (fn [rdr quo]
                 (let [o (read rdr true nil true)]
-                  (clojure.lang.RT/list sym o))))
+                  (list sym o))))
             (discard-reader [rdr underscore]
               (read rdr true nil true)
               rdr)
@@ -550,9 +562,9 @@
                           (let [ch (.read rdr)]
                             (if (or (= \\ (char ch))
                                     (= \" (char ch)))
-                              (.append sb (char ch))
-                              (.append sb
-                                (condp = (char ch)
+                              (append sb (char ch))
+                              (append sb
+                                (condp eq (char ch)
                                   \t \tab \r \return \n \newline
                                   \b \backspace \f \formfeed
                                   \u
@@ -568,11 +580,11 @@
                   (loop [ch (.read rdr)]
                     (eof-guard ch (Exception. "EOF while reading string"))
                     (if (= \" (char ch))
-                      (.toString sb)
+                      (to-string sb)
                       (if (= \\ (char ch))
                         (do (read-escaped-character-into sb rdr)
                           (recur (.read rdr)))
-                        (do (.append sb (char ch))
+                        (do (append sb (char ch))
                           (recur (.read rdr))))))))),
             (garg [n]
               (symbol (str (if (= -1 n) "rest" (str "p" n)) "__" (next-id)))),
@@ -581,7 +593,7 @@
                    (not (nil? (get-macro ch)))))
             (interpret-token [token]
               (p (format "INTERPRET-TOKEN %s" token))
-              (condp = token
+              (condp eq token
                 "nil" nil
                 "true" true
                 "false" false
@@ -656,8 +668,6 @@
                         (let [macro-fn (get-macro (int ch))]
                           (if (not (nil? macro-fn))
                             (let [ret (macro-fn rdr (char ch))]
-                              ;(p (format "macro called %c" (char ch)))
-                              (type-info ret)
                               (if (suppressed-read?)
                                 nil
                                 (if (identical? ret rdr)

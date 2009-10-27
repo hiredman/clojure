@@ -814,7 +814,7 @@ public static boolean isUnquote(Object form){
 	return form instanceof ISeq && Util.equals(RT.first(form),UNQUOTE);
 }
 
-static class UnquoteReader extends AFn{
+public static class UnquoteReader extends AFn{
 	public Object invoke(Object reader, Object comma) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
 		int ch = r.read();

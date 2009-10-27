@@ -36,7 +36,7 @@
 (ns-unmap *ns* 'read)
 
 (defn read [rdr eof-is-error? eof-value recursive?]
-  (.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
+  ;(.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
   (let [regex (fn [s] (java.util.regex.Pattern/compile s))
         intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
@@ -362,7 +362,7 @@
             (get-macro [ch]
               ;(p! (char ch))
               (condp = (char ch)
-                ;\" string-reader
+                \" string-reader
                 \; coment-reader
                 \' (wrapping-reader 'quote)
                 \@ (wrapping-reader 'clojure.core/deref)
@@ -552,7 +552,7 @@
             (string-reader [rdr doublequote]
               (p "STRING-READER")
               (let [sb (string-builder)]
-                (letfn [(escaped-character [sb rdr]
+                (letfn [(read-escaped-character-into [sb rdr]
                           (let [ch (.read rdr)]
                             (if (or (= \\ (char ch))
                                     (= \" (char ch)))
@@ -560,7 +560,17 @@
                               (.append sb
                                 (condp = (char ch)
                                   \t \tab \r \return \n \newline
-                                  \b \backspace)))))]
+                                  \b \backspace \f \formfeed
+                                  \u
+                                    (if (= -1 (Character/digit (char ch) 16))
+                                      (throw (Exception. (format "Invalid unicode escape: \\u%c" (char ch))))
+                                      (read-unicode-char<pushback> rdr ch 16 4 true))
+                                  (if (Character/isDigit (char ch))
+                                    (let [ch (read-unicode-char<pushback> rdr ch 8 3 false)]
+                                      (if (> ch 0377)
+                                        (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
+                                        ch))
+                                    (throw (Exception. (format "Unsupported escape character: %c%c" \\ (char ch))))))))))]
                   (loop [ch (.read rdr)]
                     (eof-guard ch (Exception. "EOF while reading string"))
                     (if (= \" (char ch))

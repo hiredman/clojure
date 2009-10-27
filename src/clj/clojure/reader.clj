@@ -30,7 +30,7 @@
 (defmacro type-info [x]
   `(let [x# ~x
          [a# b#] (if x# [(.toString x#) (.toString (.getClass x#))] ["null" "null"])]
-     (p! (~'format "%s : %s" a# b#))
+     (p (~'format "%s : %s" a# b#))
      x#))
 
 (ns-unmap *ns* 'read)
@@ -62,6 +62,7 @@
             (string? [o] (instance? String o))
             (namespace [o] (.getNamespace o))
             (with-meta [o m] (pre-post-p "enter with-meta" "exit with-meta" (.withMeta o m)))
+            (character? [ch] (instance? Character ch))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
@@ -129,6 +130,12 @@
               (clojure.lang.LispReader/getMacro (int ch)))
             (read-delimited-list [delim rdr recur?]
               ((clojure.lang.LispReader$DelimitedListReader.) delim rdr recur?))
+            (syntax-quote-reader [a b]
+              ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
+            (unquote-reader [a b]
+              ((clojure.lang.LispReader$UnquoteReader.) a b))
+            (character-reader [a b]
+               ((clojure.lang.LispReader$CharacterReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (read-delimited-list- [delim rdr recur?]
               (p (format "READ-DELIMITED-LIST %s %s %s" (.toString delim) (.toString rdr) (.toString recur?)))
@@ -184,7 +191,7 @@
                                 (throw (Exception. (format "Can't resolve %s" (.toString fs))))))))))
                     (throw (IllegalArgumentException. "Unsupported #= form"))))))
             (regex-reader [rdr doublequote]
-              (p! "REGEX-READER")
+              (p "REGEX-READER")
               (let [sb (string-builder)]
                 (loop [ch (.read rdr)]
                   (if (not (= (char ch) \"))
@@ -238,15 +245,15 @@
                     (if (not (map? meta))
                       (throw (IllegalArgumentException. "Metadata must be a Symbol, Keyword, or Map"))
                       (meta-map meta line))))))
-            (character? [ch] (instance? Character ch))
+            
             (unquote? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote)))
             (unquote-splicing? [form]
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote-splicing)))
-            (syntax-quote-reader [rdr backquote]
-              (p "syntax-quote-reader")
+            (syntax-quote-reader- [rdr backquote]
+              (p "SYNTAX-QUOTE-READER")
               (letfn [(syntax-quote [form]
                         (letfn [(gs-symbol-name [sym]
                                   (symbol
@@ -360,19 +367,6 @@
             (unreadable-reader [rdr leftangle]
               (throw (Exception. "Unreadable form"))),
             (get-macro [ch]
-              ;(p! (char ch))
-              (condp = (char ch)
-                \" string-reader
-                \; coment-reader
-                \' (wrapping-reader 'quote)
-                \@ (wrapping-reader 'clojure.core/deref)
-                \^ (wrapping-reader 'clojure.core/meta)
-                ;\` syntax-quote-reader 
-                ;\~ unquote-reader
-                \# dispatch-reader
-                \( list-reader
-                (get-macro* ch)))
-            (get-macro- [ch]
               (condp = (char ch)
                 \" string-reader
                 \; coment-reader
@@ -391,7 +385,7 @@
                 \% arg-reader
                 \# dispatch-reader
                 nil)),
-            (character-reader [rdr backslash]
+            (character-reader- [rdr backslash]
               (let [ch (.read rdr)]
                 (eof-guard ch (Exception. "EOF while reading character"))
                 (let [token (read-token rdr ch)]
@@ -525,7 +519,7 @@
                     (if (nil? fn)
                       (throw (Exception. (format "No dispatch macro for: %c" (char ch))))
                       (type-info (fn rdr ch))))))),
-            (unquote-reader [rdr comma]
+            (unquote-reader- [rdr comma]
               (let [ch (.read rdr)]
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))

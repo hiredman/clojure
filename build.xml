@@ -9,11 +9,143 @@
   </description>
 
   <property name="src" location="src"/>
-  <property name="test" location="test"/>
   <property name="jsrc" location="${src}/jvm"/>
+  <property name="jbuild" location="jclasses"/>
   <property name="cljsrc" location="${src}/clj"/>
   <property name="build" location="classes"/>
+  <property name="reader.build" location="reader/"/>
 
+  <!-- Java -->
+  <target name="compile-java" depends="jbuild"
+          description="Compile Java sources.">
+    <javac srcdir="${jsrc}" destdir="${jbuild}" includeJavaRuntime="yes"
+           debug="true" target="1.5"/>
+  </target>
+
+  <target name="jbuild">
+    <mkdir dir="${jbuild}"/>
+  </target>
+
+  <target name="clean-java">
+    <delete dir="${jbuild}"/>
+  </target>
+  <!-- /Java -->
+
+  <!-- Clojure -->
+  <target name="compile-clojure">
+    <antcall target="compile-reader" />
+    <antcall target="clean-clojure" />
+    <antcall target="compile-clojure1" />
+  </target>
+  <target name="compile-clojure1" depends="compile-java,build"
+          description="Compile Clojure sources.">
+    <java classname="clojure.lang.Compile"
+      classpath="${build}:${cljsrc}:${jbuild}:${reader.build}"
+      failonerror="true"
+      fork="true">
+      <sysproperty key="clojure.compile.path" value="${build}"/>
+      <arg value="clojure.core"/>
+      <arg value="clojure.main"/>
+      <arg value="clojure.set"/>
+      <arg value="clojure.xml"/>
+      <arg value="clojure.zip"/>
+      <arg value="clojure.inspector"/>
+      <arg value="clojure.walk"/>
+      <arg value="clojure.stacktrace"/>
+      <arg value="clojure.template"/>
+      <arg value="clojure.test"/>
+      <arg value="clojure.test.tap"/>
+    </java>
+  </target>
+
+  <target name="build">
+    <mkdir dir="${build}" />
+  </target>
+
+  <target name="clean-clojure">
+    <delete dir="${build}" />
+  </target>
+  <!-- /Clojure -->
+
+  <!-- Reader -->
+ <target name="compile-reader" depends="compile-clojure1,reader.build"
+          description="Compile Clojure sources.">
+    <java classname="clojure.lang.Compile"
+      classpath="${build}:${cljsrc}:${jbuild}:${reader.build}"
+      failonerror="true"
+      fork="true">
+      <sysproperty key="clojure.compile.path" value="${reader.build}"/>
+      <arg value="clojure.reader"/>
+    </java>
+  </target>
+
+  <target name="reader.build">
+    <mkdir dir="${reader.build}" />
+  </target>
+
+  <target name="clean-reader">
+    <delete dir="${reader.build}" />
+  </target>
+  <!-- /Reader -->
+
+  <!--- Jars -->
+  <target name="clojure" depends="compile-clojure,pom.xml"
+          description="Create clojure jar file.">
+    <jar jarfile="${clojure_jar}" basedir="${build}">
+      <fileset dir="${cljsrc}">
+        <include name="**/*.clj"/>
+        <include name="clojure/version.properties"/>
+      </fileset>
+      <fileset dir="${jbuild}">
+        <include name="**/*"/>
+      </fileset>
+       <fileset dir="${reader.build}">
+        <include name="**/*"/>
+      </fileset>
+      <manifest>
+        <attribute name="Main-Class" value="clojure.main"/>
+        <attribute name="Class-Path" value="."/>
+      </manifest>
+    </jar>
+    <copy file="${clojure_jar}" tofile="${clojure_noversion_jar}" />
+  </target>
+
+  <target name="clojure-slim" depends="compile-java,pom.xml"
+          description="Create clojure-slim jar file (omits compiled Clojure code)">
+          <jar jarfile="${slim_jar}" basedir="${jbuild}">
+      <fileset dir="${cljsrc}">
+        <include name="**/*.clj"/>
+        <include name="clojure/version.properties"/>
+      </fileset>
+      <manifest>
+        <attribute name="Main-Class" value="clojure.main"/>
+        <attribute name="Class-Path" value="."/>
+      </manifest>
+    </jar>
+    <copy file="${slim_jar}" tofile="${slim_noversion_jar}" />
+  </target>
+
+  <target name="clojure-sources" depends="pom.xml"
+          description="Create a JAR of Java sources.">
+    <jar jarfile="${src_jar}" basedir="${jsrc}" includes="**/*">
+      <fileset dir="${cljsrc}"
+               includes="clojure/version.properties"/>
+    </jar>
+    <copy file="${src_jar}" tofile="${src_noversion_jar}" />
+  </target>
+
+  <target name="jar" depends="clojure"/>
+
+  <target name="all" depends="clojure,clojure-slim,clojure-sources"/>
+
+ 
+  <!--- /Jars -->
+
+  <target name="clean" depends="clean-java,clean-clojure">
+    <delete file="pom.xml"/>
+  </target>
+
+  <!-- Junk I don't care about -->
   <!-- version related properties -->
   <property file="${cljsrc}/clojure/version.properties"/>
   <!-- ensures all version properties are present -->
@@ -60,13 +192,8 @@
   <property name="snapshot.repo.dir" location="/var/www/maven-snapshot-repository"/>
   <property name="stable.repo.dir" location="/var/www/maven-repository"/>
 
-  <target name="init" depends="clean">
-    <tstamp/>
-    <mkdir dir="${build}"/>
-  	<antcall target="init-version"/>
-  </target>
 
-  <target name="init-version">
+  <target name="pom.xml">
     <copy file="pom-template.xml" 
           tofile="pom.xml">
     	<filterset refid="clojure-version-filterset"/>
@@ -76,242 +203,6 @@
   	<chmod file="pom.xml" perm="ugo-w"/>
   </target>
 
-  <target name="compile-java" depends="init"
-          description="Compile Java sources.">
-    <javac srcdir="${jsrc}" destdir="${build}" includeJavaRuntime="yes"
-           debug="true" target="1.5"/>
-  </target>
 
-  <target name="compile-clojure" depends="compile-java"
-          description="Compile Clojure sources.">
-    <java classname="clojure.lang.Compile"
-          classpath="${build}:${cljsrc}:reader.jar"
-          failonerror="true">
-      <sysproperty key="clojure.compile.path" value="${build}"/>
-      <!-- <sysproperty key="}"ojure.compile.warn-on-reflection" value="true"/> -->
-      <arg value="clojure.core"/>
-      <arg value="clojure.main"/>
-      <arg value="clojure.set"/>
-      <arg value="clojure.xml"/>
-      <arg value="clojure.zip"/>
-      <arg value="clojure.inspector"/>
-      <arg value="clojure.walk"/>
-      <arg value="clojure.stacktrace"/>
-      <arg value="clojure.template"/>
-      <arg value="clojure.test"/>
-      <arg value="clojure.test.tap"/>
-    </java>
-  </target>
-
-  <!-- -->
-  <target name="compile-clojure1" depends="create-clojure-dir"
-          description="Compile Clojure sources.">
-    <java classname="clojure.lang.Compile"
-          classpathref="classpath"
-          fork="true"
-          failonerror="true">
-      <sysproperty key="clojure.compile.path" value="${clojure-build}"/>
-      <arg value="clojure.core"/>
-      <arg value="clojure.main"/>
-      <arg value="clojure.set"/>
-      <arg value="clojure.xml"/>
-      <arg value="clojure.zip"/>
-      <arg value="clojure.inspector"/>
-      <arg value="clojure.walk"/>
-      <arg value="clojure.stacktrace"/>
-      <arg value="clojure.template"/>
-      <arg value="clojure.test"/>
-      <arg value="clojure.test.tap"/>
-    </java>
-  </target>
-
-  <target name="compile-reader" depends="create-reader-dir">
-    <java classname="clojure.lang.Compile" failonerror="true"
-      classpathref="classpath">
-      <sysproperty key="clojure.compile.path" value="${reader-build}"/>
-      <arg value="clojure.reader"/>
-    </java>
-  </target>
-
-
-  <target name="compile-java1" depends="create-java-dir"
-          description="Compile Java sources.">
-    <javac srcdir="${jsrc}" destdir="${java-build}" includeJavaRuntime="yes"
-           debug="true" target="1.5"/>
-  </target>
-
-  <target name="create-java-dir">
-    <mkdir dir="${java-build}"/>
-  </target>
-
-  <target name="create-clojure-dir">
-    <mkdir dir="${clojure-build}"/>
-  </target>
-
-  <target name="create-reader-dir">
-    <mkdir dir="${reader-build}"/>
-  </target>
-
-  <property name="clojure-build" location="classes"/>
-  <property name="java-build" location="java-classes"/>
-  <property name="reader-build" location="reader/"/>
-  <property name="reader.jar" location="reader.jar"/>
-  <path id="classpath">
-    <pathelement location="${clojure-build}"/>
-    <pathelement location="${java-build}"/>
-    <pathelement location="${reader-build}"/>
-    <pathelement location="${cljsrc}"/>
-    <pathelement location="test/"/>
-  </path>
-
-  <target name="build-stage-000" depends=""
-    description="">
-    <delete dir="${clojure-build}"/>
-    <delete dir="${java-build}"/>
-    <delete dir="${reader-build}"/>
-    <delete file="*.jar"/>
-  </target>
-
-  <target name="build-stage-001" depends="build-stage-000" >
-    <copy file="pom-template.xml" 
-          tofile="pom.xml">
-    	<filterset refid="clojure-version-filterset"/>
-    </copy>
-  	<!--prevents users from modifying accidentally the generated pom.xml
-  	    works only on linux.-->
-  	<chmod file="pom.xml" perm="ugo-w"/>
-  </target>
-
-  <target name="build-stage-100" depends="build-stage-001">
-    <antcall target="compile-java1" />
-    <antcall target="compile-clojure1" />
-  </target>
-
-  <target name="build-stage-101" depends="build-stage-100">
-    <antcall target="compile-reader" />
-  </target>
-
-  <target name="build-stage-200" depends="build-stage-101">
-    <delete dir="${clojure-build}"/>
-    <antcall target="compile-clojure1" />
-  </target>
-
-  <target name="build-jar" depends="build-stage-200">
-    <jar jarfile="clojure.jar" basedir="${clojure-build}">
-      <fileset dir="${java-build}">
-        <include name="**/*"/>
-      </fileset>
-      <fileset dir="${reader-build}">
-        <include name="**/*"/>
-      </fileset>
-      <fileset dir="${cljsrc}">
-        <include name="clojure/version.properties"/>
-      </fileset>
-     <manifest>
-        <attribute name="Main-Class" value="clojure.main"/>
-        <attribute name="Class-Path" value="."/>
-      </manifest>
-    </jar>
-  </target>
-
-
-  <!-- -->
-  <target name="clojure" depends="compile-clojure"
-          description="Create clojure jar file.">
-    <jar jarfile="${clojure_jar}" basedir="${build}">
-      <fileset dir="${cljsrc}">
-        <include name="**/*.clj"/>
-        <include name="clojure/version.properties"/>
-      </fileset>
-      <manifest>
-        <attribute name="Main-Class" value="clojure.main"/>
-        <attribute name="Class-Path" value="."/>
-      </manifest>
-    </jar>
-    <copy file="${clojure_jar}" tofile="${clojure_noversion_jar}" />
-  </target>
-
-  <target name="test"
-          description="Run clojure tests">
-<!--           depends="clojure"> -->
-    <java classname="clojure.main" failonerror="true" classpathref="classpath">
-      <arg value="-e"/>
-      <arg value="(require '(clojure [test-clojure :as main])) (main/run-ant)"/>
-    </java>
-  </target>
-
-  <target name="clojure-slim" depends="compile-java"
-          description="Create clojure-slim jar file (omits compiled Clojure code)">
-    <jar jarfile="${slim_jar}">
-      <fileset dir="${build}" includes="clojure/asm/**"/>
-      <fileset dir="${build}" includes="clojure/lang/**"/>
-      <fileset dir="${build}" includes="clojure/main.class"/>
-      <fileset dir="${cljsrc}">
-        <include name="**/*.clj"/>
-        <include name="clojure/version.properties"/>
-      </fileset>
-      <manifest>
-        <attribute name="Main-Class" value="clojure.main"/>
-        <attribute name="Class-Path" value="."/>
-      </manifest>
-    </jar>
-    <copy file="${slim_jar}" tofile="${slim_noversion_jar}" />
-  </target>
-
-  <target name="clojure-sources" depends="init"
-          description="Create a JAR of Java sources.">
-    <jar jarfile="${src_jar}" basedir="${jsrc}" includes="**/*">
-      <fileset dir="${cljsrc}"
-               includes="clojure/version.properties"/>
-    </jar>
-    <copy file="${src_jar}" tofile="${src_noversion_jar}" />
-  </target>
-
-  <target name="jar" depends="clojure"/>
-
-  <target name="all" depends="clojure,clojure-slim,clojure-sources"/>
-
-  <target name="clean"
-          description="Remove autogenerated files and directories.">
-    <delete dir="${build}"/>
-    <delete file="pom.xml"/>
-  </target>
-
-  <target name="-setup-maven">
-    <typedef resource="org/apache/maven/artifact/ant/antlib.xml" uri="urn:maven-artifact-ant"/>
-  </target>
-
-  <macrodef name="deploy">
-    <attribute name="target-dir" description="Root of Maven repository"/>
-    <sequential>
-      <typedef resource="org/apache/maven/artifact/ant/antlib.xml" uri="urn:maven-artifact-ant"/>
-      <mvn:deploy file="${clojure_jar}">
-        <pom file="pom.xml"/>
-        <attach file="${src_jar}" classifier="sources"/>
-        <attach file="${slim_jar}" classifier="slim"/>
-        <remoteRepository url="file:@{target-dir}"/>
-      </mvn:deploy>
-    </sequential>
-  </macrodef>
-
-  <target name="ci-build" depends="clean,all,-setup-maven"
-          description="Continous integration build, installed to local repository.">
-    <mvn:install file="${clojure_jar}">
-      <pom file="pom.xml"/>
-      <attach file="${src_jar}" classifier="sources"/>
-      <attach file="${slim_jar}" classifier="slim"/>
-    </mvn:install>
-  </target>
-
-  <target name="nightly-build" depends="ci-build"
-          description="Build and deploy to nightly (snapshot) repository.">
-    <deploy target-dir="${snapshot.repo.dir}"/>
-  </target>
-
-
-  <target name="stable-build" depends="ci-build" description="Build and deploy to stable repository.">
-    <deploy target-dir="${stable.repo.dir}"/>
-  </target>
-
-
+ 
 </project>

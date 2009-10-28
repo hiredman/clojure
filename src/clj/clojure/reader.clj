@@ -3,7 +3,7 @@
 ;;; Move ReaderException somewhere so LispReader can be safely deleted
 ;;; ?
 
-(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count list)]
+(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count list create-ns dissoc coll? number?)]
   (ns-unmap *ns* sym))
 
 ;java stuff
@@ -44,6 +44,8 @@
 
 (defmacro map? [o] `(~'instance? clojure.lang.IPersistentMap ~o))
 
+(defmacro number? [o] `(~'instance? Number ~o))
+
 (defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
 
 (defmacro suppressed-read? [] '(clojure.lang.RT/suppressRead))
@@ -66,9 +68,13 @@
 
 (defmacro pop-thread-bindings [] `(clojure.lang.Var/popThreadBindings))
 
+(defmacro empty-tree-map [] `clojure.lang.PersistentTreeMap/EMPTY)
+
 (defmacro reader-exception [ln msg] `(clojure.lang.RT$ReaderException. ~ln ~msg))
 
 (defmacro create-var [x] `(clojure.lang.Var/create ~x))
+
+(defmacro intern-var [ns n] `(clojure.lang.Var/intern ~ns ~n))
 
 (defmacro next-id [] `(clojure.lang.RT/nextID))
 
@@ -76,9 +82,26 @@
 
 (defmacro list [& foo] `(clojure.lang.RT/list ~@foo))
 
-(defmacro arg-env [] `(clojure.lang.LispReader/ARG_ENV))
+(defmacro create-ns [sym] `(clojure.lang.Namespace/findOrCreate ~sym))
+
+(defmacro dissoc [m k] `(clojure.lang.RT/dissoc ~m ~k))
 
 ;reader stuff
+
+(defmacro arg-env [] `(var clojure.reader/arg-env))
+
+(defmacro gensym-env [] `(var clojure.reader/gensym-env))
+
+(defmacro bind-if-not-bound [varr value]
+  `(when (= false (.isBound ~varr)) (.bindRoot ~varr ~value)))
+
+(defmacro setup-state []
+  `(do
+     (intern-var (create-ns 'clojure.reader) '~'arg-env)
+     (bind-if-not-bound #'clojure.reader/arg-env nil)
+     (intern-var (create-ns 'clojure.reader) '~'gensym-env)
+     (bind-if-not-bound #'clojure.reader/gensym-env nil)))
+
 (defmacro get-class [x] `(.getClass ~x))
 
 (defmacro println-to-error [string] `(.println System/err ~string))
@@ -111,15 +134,20 @@
   `(let [x# ~x
          [a# b#] (if x# [(to-string x#) (to-string (get-class x#))] ["null" "null"])]
      (p (~'format "%s : %s" a# b#))
-     x#))
+     x#)) 
+
+(defmacro safe-to-string [x]
+  `(let [x# ~x]
+      (if x#
+        (to-string x#)
+        "null"))) 
 
 (defn read [rdr eof-is-error? eof-value recursive?]
-  ;(.alterRoot (clojure.lang.Var/find 'clojure.core/*trace-reader*) (fn [& _] true) nil)
+  (setup-state)
   (let [intPat (regex "([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)")
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
         ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
-        symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
-        GENSYM_ENV (create-var nil)]
+        symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (eq [a b] (= a b))
             (> [a b] (clojure.lang.Numbers/gt a b))
@@ -130,6 +158,7 @@
             (nil? [x] (if (= x nil) true false))
             (format [fmt & args] (String/format fmt (.toArray args)))
             (instance? [c x] (.isInstance c x))
+            (coll? [o] (instance? clojure.lang.IPersistentCollection o))
             (symbol? [o] (instance? clojure.lang.Symbol o))
             (keyword? [o] (instance? clojure.lang.Keyword o))
             (string? [o] (instance? String o))
@@ -157,6 +186,51 @@
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (syntax-quote-reader [rdr backquote]
+              (letfn [(syntax-quote-reader [form]
+                        (cond
+                          (special-form? form)
+                            (special-form-syntax-quote form)
+                          (symbol? form)
+                            (symbol-syntax-quote form)
+                          (unquote? form)
+                            (unquote-syntax-quote form)
+                          (unquote-splicing? form)
+                            (throw (IllegalStateException. "splice not in list"))
+                          (coll? form)
+                            (coll-syntax-quote form)
+                          (or (keyword? form)
+                              (number? form)
+                              (character? form)
+                              (string? form))
+                            (list 'quote form)
+                          (and (instance? clojure.lang.IObj form)
+                               (not (nil? (meta form))))
+                            (meta-syntax-quote form)
+                          :else
+                            (throw (Exception. "Syntax reader empty case"))))
+                      (symbol-syntax-quote [sym]
+                        (cond
+                          (and (= nil (namespace sym))
+                               (.endsWith (name sym) "#"))
+                            (let [gmap (deref (gensym-env))
+                                  sym (if-let [sym (val-at gmap sym)]
+                                       sym
+                                       (let [gs (symbol-intern nil
+                                                               (format "%s__%i__auto__"
+                                                                       (.substring (name sym) 0 (- (count (name sym)) 1))
+                                                                       (next-id)))]
+                                         (.set (gensym-env) (assoc gmap sym gs))
+                                         gs))]
+                              (symbol-syntax-quote-return sym))
+                          (and (nil? (namespace sym))
+                               (.endsWith (name sym) "."))
+                            (let [csym (symbol-intern null (.substring (name sym) 0 (- (count sym) 1)))
+                                  csym (symbol-intern null (.concat (name sym) "."))]
+                              (symbol-syntax-quote-return csym))))])
+                (try (push-thread-bindings {(gensym-env) (empty-tree-map)})
+                  (syntax-quote (read rdr true nil true))
+                  (finally (pop-thread-bindings))))),
             (register-arg [n]
               (let [argsyms (deref (arg-env))]
                 (if (nil? argsyms)
@@ -201,10 +275,10 @@
                       (rest-args [rargs args argsyms]
                         (let [higharg (.getKey (.first rargs))]
                           (rest-args2 (rest-args1 higharg args argsyms) argsyms)))]
-                (if (not (nil? (deref clojure.lang.LispReader/ARG_ENV)))
+                (if (not (nil? (deref (arg-env))))
                   (throw (IllegalStateException.  "Nested #()s are not allowed"))
                   (try
-                    (push-thread-bindings {(arg-env) clojure.lang.PersistentTreeMap/EMPTY})
+                    (push-thread-bindings {(arg-env) (empty-tree-map)})
                     (.unread rdr (int \())
                     (let [form (read rdr true nil true)
                           argsyms (deref (arg-env))
@@ -326,26 +400,30 @@
             (syntax-quote-reader- [rdr backquote]
               (p "SYNTAX-QUOTE-READER")
               (letfn [(syntax-quote [form]
+                        (p "syntax-quote")
                         (letfn [(gs-symbol-name [sym]
+                                  (p "gs-symbol-name")
                                   (symbol
                                     (format "%s__%i__auto__"
                                             (.substring (name sym)
                                                         0
                                                         (- (.length sym) 1))
                                             (next-id)))),
-                                (sreturn [sym] (list 'quote sym))
+                                (sreturn [sym] (p "sreturn") (list 'quote sym))
                                 (symbol-stuff []
+                                  (p "symbol-stuff")
                                   (if (and (nil? (namespace form))
                                            (.endsWith (name form) "#"))
-                                    (let [gmap (deref GENSYM_ENV)]
+                                    (let [gmap (deref (gensym-env))]
                                       (if (nil? gmap)
                                         (throw (IllegalStateException. "Gensym literal not in syntax-quote"))
                                         (let [gs (get gmap form (gs-symbol-name form))]
-                                          (.set GENSYM_ENV (assoc gmap form gs))
+                                          (.set (gensym-env) (assoc gmap form gs))
                                           (sreturn gs))))
                                     (if (and (nil? (namespace form))
                                              (.endsWith (name form) "."))
                                       (let [csym (resolve-symbol (symbol (.substring (name form) 0 (- (.length (name form)) 1))))]
+                                        (p "mark 3")
                                         (sreturn (symbol (.concat (name csym) "."))))
                                       (if (and (nil? (namespace form))
                                                (.startsWith (name form) "."))
@@ -355,22 +433,26 @@
                                           (if (instance? Class maybe-class)
                                             (sreturn (symbol (.getName maybe-class) (name form)))
                                             (sreturn (resolve-symbol form)))))))),
-                                (Finstance? [thing class] (instance? class thing))
                                 (flatten-map [m]
-                                  (reduce (fn [v [ke va]] (conj v ke va)) [] m))
+                                  (p "flatten-map")
+                                  (letfn [(f [v [ke va]] (conj v ke va))]
+                                    (loop [init [] pairs (seq m)]
+                                      (if (seq pairs)
+                                        (recur (f init (first pairs)) (next pairs))
+                                        init))))
                                 (seq-expand-list [xs]
-                                 (seq
-                                   (loop [[item & items] xs ret []]
-                                     (if (and (nil? item)
-                                              (empty? items))
-                                       ret
-                                       (cond
+                                  (p "seq-expand-list")
+                                  (loop [items xs ret []]
+                                    (if (seq items)
+                                      (let [item (first items)]
+                                        (cond
                                          (unquote? item)
-                                          (recur items (conj ret (list 'clojure.core/list (second item))))
+                                          (recur (rest items) (conj ret (list 'clojure.core/list (second item))))
                                          (unquote-splicing? item)
-                                          (recur items (conj ret (second item)))
+                                          (recur (rest items) (conj ret (second item)))
                                          :else
-                                          (recur items (conj ret (list 'clojure.core/list (syntax-quote item))))))))),
+                                          (recur (rest items) (conj ret (list 'clojure.core/list (syntax-quote item))))))
+                                      (seq ret)))),
                                 (seq-or-list [form]
                                   (let [s (seq form)]
                                     (if (nil? s)
@@ -379,7 +461,8 @@
                                             (cons 'clojure.core/concat
                                                   (seq-expand-list s)))))),
                                 (collection-stuff []
-                                  (condp Finstance? form
+                                  (p "collection-stuff")
+                                  (condp instance? form
                                     clojure.lang.IPersistentMap
                                       (let [keyvals (flatten-map form)]
                                         (list 'clojure.core/apply clojure.core/hash-map
@@ -430,9 +513,11 @@
                                     (syntax-quote (meta form)))
                               ret))))]
                 (try
-                  (push-thread-bindings {GENSYM_ENV {}})
+                  (push-thread-bindings {(gensym-env) {}})
                   (let [o (read rdr true nil true)]
-                    (syntax-quote o))
+                    (let [x (syntax-quote o)]
+                      (p! x)
+                      x))
                   (finally
                     (pop-thread-bindings))))),
             (unreadable-reader [rdr leftangle]

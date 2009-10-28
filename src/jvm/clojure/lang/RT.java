@@ -277,8 +277,8 @@ static{
         try {
    reader = (IFn) readerClass.newInstance();
         } catch (Exception e) {;}
-  
     Var.intern(CLOJURE_NS, Symbol.create("READER"), reader);
+
 	Keyword dockw = Keyword.intern(null, "doc");
 	Keyword arglistskw = Keyword.intern(null, "arglists");
 	Symbol namesym = Symbol.create("name");

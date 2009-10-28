@@ -76,6 +76,8 @@
 
 (defmacro list [& foo] `(clojure.lang.RT/list ~@foo))
 
+(defmacro arg-env [] `(clojure.lang.LispReader/ARG_ENV))
+
 ;reader stuff
 (defmacro get-class [x] `(.getClass ~x))
 
@@ -117,8 +119,7 @@
         floatPat (regex "([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
         ratioPat (regex "([-+]?[0-9]+)/([0-9]+)")
         symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
-        GENSYM_ENV (create-var nil)
-        ARG_ENV (create-var nil)]
+        GENSYM_ENV (create-var nil)]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (eq [a b] (= a b))
             (> [a b] (clojure.lang.Numbers/gt a b))
@@ -152,10 +153,6 @@
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
-            ;
-            (fn-reader [rdr lparen]
-              (p "FN-READER")
-              ((clojure.lang.LispReader$FnReader.) rdr (char lparen)))
             (arg-reader [rdr pct]
                (p "ARG-READER")
                ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
@@ -163,6 +160,37 @@
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (fn-reader [rdr lparen]
+              (p "FN-READER")
+              (letfn [(rest-args1 [higharg args argsyms]
+                        (if (> higharg 0)
+                          (loop [i 1 args args]
+                            (if (or (> higharg i)
+                                    (= higharg i))
+                               (let [sym (val-at argsyms i)
+                                     sym (if (nil? sym) (garg i) sym)]
+                                (recur (inc i) (conj args sym)))
+                              args))
+                          args))
+                      (rest-args2 [args argsyms]
+                        (let [restsym (val-at argsyms -1)]
+                          (if (not (nil? restsym))
+                            (conj (conj args '&) restsym)
+                            args)))
+                      (rest-args [rargs args argsyms]
+                        (let [higharg (.getKey (.first rargs))]
+                          (rest-args2 (rest-args1 higharg args argsyms) argsyms)))]
+                (if (not (nil? (deref clojure.lang.LispReader/ARG_ENV)))
+                  (throw (IllegalStateException.  "Nested #()s are not allowed"))
+                  (try
+                    (push-thread-bindings {(arg-env) clojure.lang.PersistentTreeMap/EMPTY})
+                    (.unread rdr (int \())
+                    (let [form (read rdr true nil true)
+                          argsyms (deref (arg-env))
+                          rargs (.rseq argsyms)
+                          args (if (not (nil? rargs)) (rest-args rargs [] argsyms) [])]
+                      (list 'fn* args form))
+                    (finally (pop-thread-bindings))))))
             (read-delimited-list [delim rdr recur?]
               (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
               (let [a (array-list)]
@@ -186,7 +214,7 @@
             (eval-reader [rdr eq]
               (p "eval-reader")
               (when (not *read-eval*)
-                (throw (Exception. "eval-reader not allow when *read-eval* is false.")))
+                (throw (Exception. "eval-reader not allowed when *read-eval* is false.")))
               (let [o (read rdr true nil true)]
                 (if (symbol? o)
                   (class-for-name o)

@@ -153,13 +153,37 @@
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
-            (arg-reader [rdr pct]
-               (p "ARG-READER")
-               ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
+            ;(arg-reader [rdr pct]
+            ;   (p "ARG-READER")
+            ;   ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
             (syntax-quote-reader [a b]
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (register-arg [n]
+              (let [argsyms (deref (arg-env))]
+                (if (nil? argsyms)
+                  (throw (IllegalStateException. "arg literal not in #()"))
+                  (if-let [ret (val-at argsyms n)]
+                    ret
+                    (let [ret (garg n)]
+                      (.set (arg-env) (assoc argsyms n ret))
+                      ret)))))
+            (arg-reader [rdr pct]
+              (if (nil? (deref (arg-env)))
+                (interpret-token (read-token rdr \%))
+                (let [ch (dot-read rdr)]
+                  (dot-unread rdr ch)
+                  (if (or (= -1 (int ch))
+                          (whitespace? ch)
+                          (terminating-macro? ch))
+                    (register-arg 1)
+                    (let [n (read rdr true nil true)]
+                      (if (= n '&)
+                        (register-arg -1)
+                        (if (not (instance? Number n))
+                          (throw (IllegalStateException. "arg literal must be %, %&, or %integer"))
+                          (register-arg (.intValue n)))))))))
             (fn-reader [rdr lparen]
               (p "FN-READER")
               (letfn [(rest-args1 [higharg args argsyms]

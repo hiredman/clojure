@@ -60,7 +60,7 @@ static final Symbol CLOJURE_SLASH = Symbol.create("clojure.core","/");
 //symbol->gensymbol
 static Var GENSYM_ENV = Var.create(null);
 //sorted-map num->gensymbol
-static Var ARG_ENV = Var.create(null);
+public static Var ARG_ENV = Var.create(null);
 
     static
 	{

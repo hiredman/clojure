@@ -189,6 +189,7 @@ final static public Var USE_CONTEXT_CLASSLOADER =
 //final static public Var CURRENT_MODULE = Var.intern(Symbol.create("clojure.core", "current-module"),
 //                                                    Module.findOrCreateModule("clojure/user"));
 
+public final static Var ARG_ENV = Var.create(null);
 final static Symbol LOAD_FILE = Symbol.create("load-file");
 final static Symbol IN_NAMESPACE = Symbol.create("in-ns");
 final static Symbol NAMESPACE = Symbol.create("ns");

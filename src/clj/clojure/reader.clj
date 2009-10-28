@@ -153,9 +153,6 @@
                         (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
-            ;(arg-reader [rdr pct]
-            ;   (p "ARG-READER")
-            ;   ((clojure.lang.LispReader$ArgReader.) rdr (char pct)))
             (syntax-quote-reader [a b]
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))

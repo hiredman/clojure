@@ -1,10 +1,7 @@
-(ns clojure.reader)
-;;; TODO
-;;; Move ReaderException somewhere so LispReader can be safely deleted
-;;; ?
-
-(doseq [sym '(read = name namespace with-meta map? push-thread-bindings pop-thread-bindings count list create-ns dissoc coll? number?)]
-  (ns-unmap *ns* sym))
+(ns clojure.reader
+  (:refer-clojure :exclude [read = name namespace with-meta map? push-thread-bindings
+                            pop-thread-bindings count list create-ns dissoc number?
+                            symbol? coll? keyword? string? character? > inc * +]))
 
 ;java stuff
 (defmacro to-string [x] `(.toString ~x))
@@ -46,6 +43,16 @@
 
 (defmacro number? [o] `(~'instance? Number ~o))
 
+(defmacro coll? [o] `(~'instance? clojure.lang.IPersistentCollection ~o))
+
+(defmacro symbol? [o] `(~'instance? clojure.lang.Symbol ~o))
+
+(defmacro keyword? [o] `(~'instance? clojure.lang.Keyword ~o))
+
+(defmacro string? [o] `(~'instance? String ~o))
+
+(defmacro character? [ch] `(~'instance? Character ~ch))
+ 
 (defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
 
 (defmacro suppressed-read? [] '(clojure.lang.RT/suppressRead))
@@ -63,6 +70,8 @@
 (defmacro keyword-intern<1> [kw] `(clojure.lang.Keyword/intern ~kw))
 
 (defmacro symbol-intern [s] `(clojure.lang.Symbol/intern ~s))
+
+(defmacro symbol-intern<2> [n s] `(clojure.lang.Symbol/intern ~n ~s))
 
 (defmacro push-thread-bindings [map] `(clojure.lang.Var/pushThreadBindings ~map))
 
@@ -84,7 +93,15 @@
 
 (defmacro create-ns [sym] `(clojure.lang.Namespace/findOrCreate ~sym))
 
+(defmacro > [a b] `(clojure.lang.Numbers/gt ~a ~b))
+
 (defmacro dissoc [m k] `(clojure.lang.RT/dissoc ~m ~k))
+
+(defmacro inc [x] `(clojure.lang.Numbers/inc ~x))
+
+(defmacro * [x y] `(. clojure.lang.Numbers (multiply ~x ~y)))
+
+(defmacro + [x y] `(. clojure.lang.Numbers (add ~x ~y)))
 
 ;reader stuff
 
@@ -150,19 +167,10 @@
         symbolPat (regex "[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")]
     (letfn [;Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (eq [a b] (= a b))
-            (> [a b] (clojure.lang.Numbers/gt a b))
             (not [x] (if x false true))
-            (inc [x] (clojure.lang.Numbers/inc x))
-            (* [x y] (. clojure.lang.Numbers (multiply x y)))
-            (+ [x y] (. clojure.lang.Numbers (add x y)))
             (nil? [x] (if (= x nil) true false))
             (format [fmt & args] (String/format fmt (.toArray args)))
             (instance? [c x] (.isInstance c x))
-            (coll? [o] (instance? clojure.lang.IPersistentCollection o))
-            (symbol? [o] (instance? clojure.lang.Symbol o))
-            (keyword? [o] (instance? clojure.lang.Keyword o))
-            (string? [o] (instance? String o))
-            (character? [ch] (instance? Character ch))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what & args]
@@ -186,8 +194,8 @@
               (p "SYNTAX-QUOTE-READER")
               ((clojure.lang.LispReader$SyntaxQuoteReader.) a b))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (syntax-quote-reader [rdr backquote]
-              (letfn [(syntax-quote-reader [form]
+            (syntax-quote-reader- [rdr backquote]
+              (letfn [(syntax-quote [form]
                         (cond
                           (special-form? form)
                             (special-form-syntax-quote form)
@@ -208,7 +216,8 @@
                                (not (nil? (meta form))))
                             (meta-syntax-quote form)
                           :else
-                            (throw (Exception. "Syntax reader empty case"))))
+                            (throw (Exception. "Syntax reader empty case")))),
+                      (special-form-syntax-quote [form])
                       (symbol-syntax-quote [sym]
                         (cond
                           (and (= nil (namespace sym))
@@ -216,7 +225,7 @@
                             (let [gmap (deref (gensym-env))
                                   sym (if-let [sym (val-at gmap sym)]
                                        sym
-                                       (let [gs (symbol-intern nil
+                                       (let [gs (symbol-intern<2> nil
                                                                (format "%s__%i__auto__"
                                                                        (.substring (name sym) 0 (- (count (name sym)) 1))
                                                                        (next-id)))]
@@ -225,9 +234,13 @@
                               (symbol-syntax-quote-return sym))
                           (and (nil? (namespace sym))
                                (.endsWith (name sym) "."))
-                            (let [csym (symbol-intern null (.substring (name sym) 0 (- (count sym) 1)))
-                                  csym (symbol-intern null (.concat (name sym) "."))]
-                              (symbol-syntax-quote-return csym))))])
+                            (let [csym (symbol-intern<2> nil (.substring (name sym) 0 (- (count sym) 1)))
+                                  csym (symbol-intern<2> nil (.concat (name sym) "."))]
+                              (symbol-syntax-quote-return csym))))
+                      (symbol-syntax-quote-return [sym])
+                      (unquote-syntax-quote [form])
+                      (coll-syntax-quote [form])
+                      (meta-syntax-quote)]
                 (try (push-thread-bindings {(gensym-env) (empty-tree-map)})
                   (syntax-quote (read rdr true nil true))
                   (finally (pop-thread-bindings))))),

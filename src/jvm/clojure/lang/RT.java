@@ -257,10 +257,8 @@ static final public IFn EMPTY_GEN = new AFn(){
 
 static{
   /**********************/
-	Var.intern(CLOJURE_NS,Symbol.create("*trace-reader*"),null);
   Class readerClass;
   IFn reader = null;
-  Var.intern(CLOJURE_NS, Symbol.create("*trace-reader*"), false);
   try {
     java.util.Properties p = new java.util.Properties();
     p.load(RT.class.getResourceAsStream("/reader.properties"));

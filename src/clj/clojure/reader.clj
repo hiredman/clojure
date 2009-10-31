@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [read = name namespace with-meta map? push-thread-bindings
                             pop-thread-bindings count list create-ns dissoc number?
                             symbol? coll? keyword? string? character? > inc * + deref
-                            get list? seq? into-array]))
+                            get list? seq?]))
 
 ;java stuff
 (defmacro to-string [x] `(.toString ~x))
@@ -42,8 +42,7 @@
 
 (defmacro invoke-static [class name args] `(clojure.lang.Reflector/invokeStaticMethod ~class ~name ~args))
 
-;(defmacro namespace-for [kw] `(clojure.lang.Compiler/namespaceFor ~kw))
-(defmacro namespace-for [kw] `(~'wall-hack clojure.lang.Compiler :namespaceFor [clojure.lang.Symbol] nil ~kw))
+(defmacro namespace-for [kw] `(clojure.lang.Compiler/namespaceFor ~kw))
 
 (defmacro static-member-name? [x] `(clojure.lang.Compiler/namesStaticMember ~x))
 
@@ -65,8 +64,7 @@
 
 (defmacro character? [ch] `(~'instance? Character ~ch))
  
-;(defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
-(defmacro special-form? [form] `(~'wall-hack :method clojure.lang.Compiler :isSpecial [Object] nil ~form))
+(defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
 
 (defmacro suppressed-read? [] '(clojure.lang.RT/suppressRead))
 
@@ -76,8 +74,7 @@
 
 (defmacro current-ns [] `(deref clojure.lang.RT/CURRENT_NS))
 
-;(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
-(defmacro resolve-symbol [sym] `(~'wall-hack :method clojure.lang.Compiler :resolveSymbol [clojure.lang.Symbol] nil ~sym))
+(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
 
 (defmacro keyword-intern<2> [ns kw] `(clojure.lang.Keyword/intern ~ns ~kw))
 
@@ -116,8 +113,6 @@
 (defmacro * [x y] `(. clojure.lang.Numbers (multiply ~x ~y)))
 
 (defmacro + [x y] `(. clojure.lang.Numbers (add ~x ~y)))
-
-(defmacro into-array [type x] `(clojure.lang.RT/seqToTypedArray ~type (seq ~x)))
 
 ;reader stuff
 
@@ -189,21 +184,21 @@
             (instance? [c x] (.isInstance c x))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (wall-hack [what class-name other-name & args]
+            (wall-hack [what & args]
               (p "enter wall-hack")
               (letfn [(wall-hack-field [class-name field-name obj]
                         (-> class-name (.getDeclaredField (name field-name))
                           (doto (.setAccessible true)) (.get obj)))
-                      (wall-hack-method [class-name method-name types obj args]
+                      (wall-hack-method [class-name method-name types obj & args]
                         (-> class-name (.getDeclaredMethod (name method-name)
                                                            (into-array Class types))
                           (doto (.setAccessible true))
-                          (.invoke obj (safe-to-array args))))]
+                          (.invoke obj (into-array Object args))))]
                      (condp eq what
                        :method
-                        (wall-hack-method class-name other-name (first args) (first (rest args)) (rest (rest args)))
+                        (apply wall-hack-method args)
                        :field
-                        (wall-hack-field class-name other-name (first args))
+                        (apply wall-hack-field args)
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

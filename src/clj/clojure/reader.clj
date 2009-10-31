@@ -42,7 +42,8 @@
 
 (defmacro invoke-static [class name args] `(clojure.lang.Reflector/invokeStaticMethod ~class ~name ~args))
 
-(defmacro namespace-for [kw] `(clojure.lang.Compiler/namespaceFor ~kw))
+;(defmacro namespace-for [kw] `(clojure.lang.Compiler/namespaceFor ~kw))
+(defmacro namespace-for [kw] `(~'wall-hack-method clojure.lang.Compiler :namespaceFor [clojure.lang.Symbol] nil ~kw))
 
 (defmacro static-member-name? [x] `(clojure.lang.Compiler/namesStaticMember ~x))
 
@@ -64,7 +65,8 @@
 
 (defmacro character? [ch] `(~'instance? Character ~ch))
  
-(defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
+;(defmacro special-form? [form] `(clojure.lang.Compiler/isSpecial ~form))
+(defmacro special-form? [form] `(~'wall-hack-method clojure.lang.Compiler :isSpecial [Object] nil ~form))
 
 (defmacro suppressed-read? [] '(clojure.lang.RT/suppressRead))
 
@@ -75,7 +77,7 @@
 (defmacro current-ns [] `(deref clojure.lang.RT/CURRENT_NS))
 
 ;(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
-(defmacro resolve-symbol [sym] `(~'wall-hack :method clojure.lang.Compiler :resolveSymbol nil [~sym]))
+(defmacro resolve-symbol [sym] `(~'wall-hack-method clojure.lang.Compiler :resolveSymbol [clojure.lang.Symbol] nil ~sym))
 
 (defmacro keyword-intern<2> [ns kw] `(clojure.lang.Keyword/intern ~ns ~kw))
 
@@ -141,18 +143,6 @@
   `(when (= -1 (int ~ch))
      (throw ~e)))
 
-(defmacro p [thing]
-  `(when *trace-reader* (println-to-error (to-string ~thing))))
-
-(defmacro p! [thing]
-  `(println-to-error (to-string ~thing)))
-
-(defmacro pre-post-p [pre post & body]
-  `(do
-     (p ~pre)
-     (let [x# (do ~@body)]
-       (p ~post)
-       x#)))
 
 (defmacro safe-to-array [x]
   `(pre-post-p "enter safe-to-array" "exit safe-to-array"
@@ -171,7 +161,20 @@
   `(let [x# ~x]
       (if x#
         (to-string x#)
-        "null"))) 
+        "null")))
+
+(defmacro p [thing]
+  `(when clojure.core/*trace-reader* (println-to-error (safe-to-string ~thing))))
+
+(defmacro p! [thing]
+  `(println-to-error (safe-to-string ~thing)))
+
+(defmacro pre-post-p [pre post & body]
+  `(do
+     (p ~pre)
+     (let [x# (do ~@body)]
+       (p ~post)
+       x#)))
 
 (defn read [rdr eof-is-error? eof-value recursive?]
   (setup-state)
@@ -187,23 +190,28 @@
             (instance? [c x] (.isInstance c x))
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-            (wall-hack [what & args]
+            (wall-hack [what class-name member-name & args]
               (p "enter wall-hack")
               (letfn [(wall-hack-field [class-name field-name obj]
                         (-> class-name (.getDeclaredField (name field-name))
                           (doto (.setAccessible true)) (.get obj)))
-                      (wall-hack-method [class-name method-name types obj & args]
+                      (wall-hack-method [class-name method-name types obj args]
                         (-> class-name (.getDeclaredMethod (name method-name)
                                                            (into-array Class types))
                           (doto (.setAccessible true))
                           (.invoke obj (into-array Object args))))]
                      (condp eq what
                        :method
-                        (apply wall-hack-method args)
+                        (wall-hack-method class-name member-name (first args) (fnext args) (nnext args))
                        :field
-                        (apply wall-hack-field args)
+                        (wall-hack-field class-name member-name (first args))
                        :else
                         (throw (IllegalArgumentException. "boo"))))),
+            (wall-hack-method [class-name method-name types obj & args]
+              (-> class-name (.getDeclaredMethod (name method-name)
+                                                 (into-array Class (seq types)))
+                (doto (.setAccessible true))
+                (.invoke obj (into-array Object args))))
             ;/Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (register-arg [n]
               (let [argsyms (deref (arg-env))]

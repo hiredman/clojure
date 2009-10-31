@@ -145,36 +145,16 @@
 
 
 (defmacro safe-to-array [x]
-  `(pre-post-p "enter safe-to-array" "exit safe-to-array"
-     (let [x# ~x]
+  `(let [x# ~x]
       (if x#
         (.toArray x#)
-        (.toArray [])))))
-
-(defmacro type-info [x]
-  `(let [x# ~x
-         [a# b#] (if x# [(to-string x#) (to-string (get-class x#))] ["null" "null"])]
-     (p (~'format "%s : %s" a# b#))
-     x#)) 
+        (.toArray []))))
 
 (defmacro safe-to-string [x]
   `(let [x# ~x]
       (if x#
         (to-string x#)
         "null")))
-
-(defmacro p [thing]
-  `(when clojure.core/*trace-reader* (println-to-error (safe-to-string ~thing))))
-
-(defmacro p! [thing]
-  `(println-to-error (safe-to-string ~thing)))
-
-(defmacro pre-post-p [pre post & body]
-  `(do
-     (p ~pre)
-     (let [x# (do ~@body)]
-       (p ~post)
-       x#)))
 
 (defn read [rdr eof-is-error? eof-value recursive?]
   (setup-state)
@@ -191,7 +171,6 @@
             ;/Boots;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             ;Wrappers;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             (wall-hack [what class-name member-name & args]
-              (p "enter wall-hack")
               (letfn [(wall-hack-field [class-name field-name obj]
                         (-> class-name (.getDeclaredField (name field-name))
                           (doto (.setAccessible true)) (.get obj)))
@@ -238,7 +217,6 @@
                           (throw (IllegalStateException. "arg literal must be %, %&, or %integer"))
                           (register-arg (.intValue n)))))))))
             (fn-reader [rdr lparen]
-              (p "FN-READER")
               (letfn [(rest-args1 [higharg args argsyms]
                         (if (> higharg 0)
                           (loop [i 1 args args]
@@ -269,7 +247,6 @@
                       (list 'fn* args form))
                     (finally (pop-thread-bindings))))))
             (read-delimited-list [delim rdr recur?]
-              (p (format "READ-DELIMITED-LIST %s %s %s" (to-string delim) (to-string rdr) (to-string recur?)))
               (let [a (array-list)]
                 (loop [ch (dot-read rdr)]
                   (if (whitespace? ch)
@@ -289,7 +266,6 @@
                                   (add a o))
                                 (recur (dot-read rdr))))))))))))
             (eval-reader [rdr eq]
-              (p "eval-reader")
               (when (not *read-eval*)
                 (throw (Exception. "eval-reader not allowed when *read-eval* is false.")))
               (let [o (read rdr true nil true)]
@@ -319,7 +295,6 @@
                                 (throw (Exception. (format "Can't resolve %s" (to-string fs))))))))))
                     (throw (IllegalArgumentException. "Unsupported #= form"))))))
             (regex-reader [rdr doublequote]
-              (p "REGEX-READER")
               (let [sb (string-builder)]
                 (loop [ch (dot-read rdr)]
                   (if (not (= (char ch) \"))
@@ -346,12 +321,10 @@
                 \_ discard-reader
                 nil))
             (meta-reader [rdr caret]
-              (p "enter meta-reader")
               (let [line (if (instance? clojure.lang.LineNumberingPushbackReader rdr)
                            (.getLineNumber rdr)
                            -1)
                     meta (read rdr true nil true)]
-                (p (format "meta-reader %s" (to-string meta)))
                 (letfn [(meta-tag [meta line] (meta-map {:tag meta} line))
                         (meta-map [meta line]
                           (let [o (read rdr true nil true)]
@@ -380,20 +353,16 @@
               (and (instance? clojure.lang.ISeq form)
                    (= (first form) 'clojure.core/unquote-splicing)))
             (syntax-quote-reader [rdr backquote]
-              (p "SYNTAX-QUOTE-READER")
               (letfn [(syntax-quote [form]
-                        (p "syntax-quote")
                         (letfn [(gs-symbol-name [sym]
-                                  (p "gs-symbol-name")
                                   (symbol
                                     (format "%s__%s__auto__"
                                             (.substring (name sym)
                                                         0
                                                         (- (count (name sym)) 1))
                                             (to-string (next-id))))),
-                                (sreturn [sym] (p "sreturn") (list 'quote sym))
+                                (sreturn [sym] (list 'quote sym))
                                 (symbol-stuff []
-                                  (p "symbol-stuff")
                                   (if (and (nil? (namespace form))
                                            (.endsWith (name form) "#"))
                                     (let [gmap (deref (gensym-env))]
@@ -405,7 +374,6 @@
                                     (if (and (nil? (namespace form))
                                              (.endsWith (name form) "."))
                                       (let [csym (resolve-symbol (symbol (.substring (name form) 0 (- (.length (name form)) 1))))]
-                                        (p "mark 3")
                                         (sreturn (symbol (.concat (name csym) "."))))
                                       (if (and (nil? (namespace form))
                                                (.startsWith (name form) "."))
@@ -416,14 +384,12 @@
                                             (sreturn (symbol (.getName maybe-class) (name form)))
                                             (sreturn (resolve-symbol form)))))))),
                                 (flatten-map [m]
-                                  (p "flatten-map")
                                   (letfn [(f [v [ke va]] (conj v ke va))]
                                     (loop [init [] pairs (seq m)]
                                       (if (seq pairs)
                                         (recur (f init (first pairs)) (next pairs))
                                         init))))
                                 (seq-expand-list [xs]
-                                  (p "seq-expand-list")
                                   (loop [items xs ret []]
                                     (if (seq items)
                                       (let [item (first items)]
@@ -443,7 +409,6 @@
                                             (cons 'clojure.core/concat
                                                   (seq-expand-list s)))))),
                                 (collection-stuff []
-                                  (p "collection-stuff")
                                   (condp instance? form
                                     clojure.lang.IPersistentMap
                                       (let [keyvals (flatten-map form)]
@@ -522,7 +487,6 @@
                 \# dispatch-reader
                 nil)),
             (character-reader [rdr backslash]
-              (p "CHARACTER-READER")
               (let [ch (dot-read rdr)]
                 (eof-guard ch (Exception. "EOF while reading character"))
                 (let [token (read-token rdr ch)]
@@ -639,7 +603,6 @@
                             (BigInteger. (.group m 1))
                             (BigInteger. (.group m 2)))))))))),
             (var-reader [rdr quo]
-              ;(p "var-reader")
               (list 'var (read rdr true nil true))),
             (unmatched-delimited-reader [rdr rightdelim]
               (throw
@@ -647,9 +610,7 @@
                   (format "Unmatched delimiter: %c" (char rightdelim))))),
             (whitespace? [ch] (or (Character/isWhitespace ch) (= \, (char ch)))),
             (dispatch-reader [rdr hash]
-              (p "DISPATCH-READER")
               (let [ch (dot-read rdr)]
-              (p (format "read ch %c previous ch %c" (char ch) (char hash)))
                 (if (= (int ch) -1)
                   (throw (Exception. "EOF while reading character"))
                   (let [fn (get-dispatch-macro ch)]
@@ -673,7 +634,6 @@
               (read rdr true nil true)
               rdr)
             (coment-reader [rdr semicolon]
-              (p "COMENT-READER")
               (loop [ch (dot-read rdr)]
                 (if (and (not (= -1 (int ch)))
                          (not (= (char ch) \newline))
@@ -681,7 +641,6 @@
                   (recur (dot-read rdr))
                   rdr)))
             (string-reader [rdr doublequote]
-              (p "STRING-READER")
               (let [sb (string-builder)]
                 (letfn [(read-escaped-character-into [sb rdr]
                           (let [ch (dot-read rdr)]
@@ -717,7 +676,6 @@
               (and (not (= (char ch) \#))
                    (not (nil? (get-macro ch)))))
             (interpret-token [token]
-              (p (format "INTERPRET-TOKEN %s" token))
               (condp eq token
                 "nil" nil
                 "true" true
@@ -729,7 +687,6 @@
                     ret
                     (throw (Exception. (format "Invalid token: %s" token))))))),
             (read-token [rdr ch]
-              (p "READ-TOKEN")
               (let [sb (string-builder)]
                 (append sb (char ch))
                 (loop [ch (dot-read rdr)]
@@ -741,7 +698,6 @@
                     (do (append sb (char ch))
                       (recur (dot-read rdr))))))),
             (read-number [rdr initch]
-              (p "READ-NUMBER")
               (let [sb (string-builder)]
                 (append sb (char initch))
                 (loop [ch (dot-read rdr)]
@@ -776,7 +732,6 @@
                       s))))),
             (macro? [ch] (not (nil? (get-macro ch))))
             (read [rdr eof-error? eof-value recursive?]
-              (p "READ")
               (try
                 (loop [ch (dot-read rdr)]
                   (if (whitespace? ch)

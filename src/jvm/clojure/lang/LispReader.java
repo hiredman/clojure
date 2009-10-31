@@ -103,14 +103,6 @@ static void unread(PushbackReader r, int ch) throws IOException{
 		r.unread(ch);
 }
 
-public static class ReaderException extends Exception{
-	final int line;
-
-	public ReaderException(int line, Throwable cause){
-		super(cause);
-		this.line = line;
-	}
-}
 
 static public Object read(PushbackReader r, boolean eofIsError, Object eofValue, boolean isRecursive)
 		throws Exception{
@@ -177,8 +169,17 @@ static public Object read(PushbackReader r, boolean eofIsError, Object eofValue,
 			throw e;
 		LineNumberingPushbackReader rdr = (LineNumberingPushbackReader) r;
 		//throw new Exception(String.format("ReaderError:(%d,1) %s", rdr.getLineNumber(), e.getMessage()), e);
-		throw new ReaderException(rdr.getLineNumber(), e);
+		throw new RT.ReaderException(rdr.getLineNumber(), e);
 		}
+}
+
+public static class LispReaderFn extends AFn{
+	public Object invoke(Object rdrO, Object eofIsErrorO, Object eofValue, Object isRecursiveO) throws Exception{
+      PushbackReader rdr = (PushbackReader) rdrO;
+      boolean eofIsError = (Boolean) eofIsErrorO;
+      Boolean isRecursive = (Boolean) isRecursiveO;
+      return read(rdr, eofIsError, eofValue, isRecursive);
+	}
 }
 
 static private String readToken(PushbackReader r, char initch) throws Exception{

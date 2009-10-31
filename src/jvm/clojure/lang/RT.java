@@ -256,6 +256,29 @@ static final public IFn EMPTY_GEN = new AFn(){
 };
 
 static{
+  /**********************/
+	Var.intern(CLOJURE_NS,Symbol.create("*trace-reader*"),null);
+  Class readerClass;
+  IFn reader = null;
+  Var.intern(CLOJURE_NS, Symbol.create("*trace-reader*"), false);
+  try {
+    java.util.Properties p = new java.util.Properties();
+    p.load(RT.class.getResourceAsStream("/reader.properties"));
+    String f = p.getProperty("reader.name");
+    readerClass = classForName(f);}
+  catch (Exception e) {
+    try {
+        System.err.println("Falling back to java reader.");
+        readerClass = classForName("clojure.lang.LispReader$LispReaderFn");}
+      catch (Exception e1) {
+        System.err.println("Whoops, no reader");
+        throw new RuntimeException("no reader");}}
+ 
+        try {
+   reader = (IFn) readerClass.newInstance();
+        } catch (Exception e) {;}
+    Var.intern(CLOJURE_NS, Symbol.create("READER"), reader);
+  /**********************/
 	Keyword dockw = Keyword.intern(null, "doc");
 	Keyword arglistskw = Keyword.intern(null, "arglists");
 	Symbol namesym = Symbol.create("name");
@@ -296,6 +319,9 @@ static{
 	}
 }
 
+static public Object read (Object reader, Object eofIsError, Object eofValue, Object isRecursive) throws Exception {
+  return ((IFn) CLOJURE_NS.findInternedVar(Symbol.create("READER")).deref()).invoke(reader, eofIsError, eofValue, isRecursive);
+}
 
 static public Var var(String ns, String name){
 	return Var.intern(Namespace.findOrCreate(Symbol.intern(null, ns)), Symbol.intern(null, name));
@@ -1680,6 +1706,14 @@ static public Object aset(Object xs, int i, Object v){
 
 static public int alength(Object xs){
 	return Array.getLength(xs);
+}
+public static class ReaderException extends Exception{
+	final int line;
+
+	public ReaderException(int line, Throwable cause){
+		super(cause);
+		this.line = line;
+	}
 }
 
 }

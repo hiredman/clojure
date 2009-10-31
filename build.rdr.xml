@@ -14,6 +14,7 @@
   <property name="cljsrc" location="${src}/clj"/>
   <property name="build" location="classes"/>
   <property name="reader.build" location="reader/"/>
+  <property name="test" location="test/"/>
 
   <!-- Java -->
   <target name="compile-java" depends="jbuild"

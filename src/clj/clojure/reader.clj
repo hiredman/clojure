@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [read = name namespace with-meta map? push-thread-bindings
                             pop-thread-bindings count list create-ns dissoc number?
                             symbol? coll? keyword? string? character? > inc * + deref
-                            get list? seq?]))
+                            get list? seq? into-array]))
 
 ;java stuff
 (defmacro to-string [x] `(.toString ~x))
@@ -74,7 +74,8 @@
 
 (defmacro current-ns [] `(deref clojure.lang.RT/CURRENT_NS))
 
-(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
+;(defmacro resolve-symbol [sym] `(clojure.lang.Compiler/resolveSymbol ~sym))
+(defmacro resolve-symbol [sym] `(~'wall-hack :method clojure.lang.Compiler :resolveSymbol nil [~sym]))
 
 (defmacro keyword-intern<2> [ns kw] `(clojure.lang.Keyword/intern ~ns ~kw))
 
@@ -113,6 +114,8 @@
 (defmacro * [x y] `(. clojure.lang.Numbers (multiply ~x ~y)))
 
 (defmacro + [x y] `(. clojure.lang.Numbers (add ~x ~y)))
+
+(defmacro into-array [class s] `(clojure.lang.RT/seqToTypedArray ~class ~s))
 
 ;reader stuff
 

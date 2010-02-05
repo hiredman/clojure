@@ -57,6 +57,7 @@ static final Symbol IMPORT = Symbol.create("clojure.core", "import*");
 //static final Symbol INSTANCE = Symbol.create("instance?");
 static final Symbol DEFTYPE = Symbol.create("deftype*");
 static final Symbol CASE = Symbol.create("case*");
+static final Symbol JOP = Symbol.create("jop");
 
 //static final Symbol THISFN = Symbol.create("thisfn");
 static final Symbol CLASS = Symbol.create("Class");
@@ -124,7 +125,8 @@ NEW, new NewExpr.Parser(),
 //		UNQUOTE, null,
 //		UNQUOTE_SPLICING, null,
 //		SYNTAX_QUOTE, null,
-_AMP_, null
+		_AMP_, null,
+		JOP, new JopExpr.Parser()
 );
 
 private static final int MAX_POSITIONAL_ARITY = 20;
@@ -286,6 +288,7 @@ interface IParser{
 }
 
 static boolean isSpecial(Object sym){
+    //System.err.println("isSpecial");
 	return specials.containsKey(sym);
 }
 
@@ -2796,6 +2799,7 @@ static class InvokeExpr implements Expr{
 		this.fexpr = fexpr;
 		this.args = args;
 		this.line = line;
+		//System.err.println(fexpr.toString());
 		if(fexpr instanceof VarExpr)
 			{
 			Var fvar = ((VarExpr)fexpr).var;
@@ -4675,6 +4679,103 @@ public static class BodyExpr implements Expr, MaybePrimitiveExpr{
 	}
 }
 
+
+public static class JopExpr implements Expr, MaybePrimitiveExpr{
+	PersistentVector exprs;
+    Type outType;
+    IPersistentMap ops = PersistentHashMap.create(
+      Symbol.create("+"),GeneratorAdapter.ADD,
+      Symbol.create("/"),GeneratorAdapter.DIV,
+      Symbol.create("-"),GeneratorAdapter.SUB,
+      Symbol.create("*"),GeneratorAdapter.MUL
+    );
+    IPersistentMap types = PersistentHashMap.create(
+      int.class, Type.INT_TYPE,
+      float.class, Type.FLOAT_TYPE,
+      short.class, Type.SHORT_TYPE,
+      long.class, Type.LONG_TYPE,
+      double.class, Type.DOUBLE_TYPE
+    );
+
+	public final PersistentVector exprs(){
+		return exprs;
+	}
+
+	public JopExpr(PersistentVector exprs){
+		this.exprs = exprs;
+		try {
+		    this.outType = (Type) types.valAt(((MaybePrimitiveExpr)exprs.get(1)).getJavaClass());
+		} catch(Exception e) {
+		    System.err.println(e.toString());
+		}
+	}
+
+	static class Parser implements IParser{
+		public Expr parse(C context, Object frms) throws Exception{
+		    ISeq forms = (ISeq) frms;
+		    Symbol sym = (Symbol) RT.first(forms);
+		    forms = RT.next(forms);
+		    sym = (Symbol) RT.first(forms);
+		    forms = RT.next(forms);
+			if(Util.equals(RT.first(forms), JOP))
+				forms = RT.next(forms);
+			PersistentVector exprs = PersistentVector.EMPTY;
+			exprs=exprs.cons(sym);
+			for(; forms != null; forms = forms.next())
+				{
+				Expr e = (context != C.EVAL &&
+				          (context == C.STATEMENT || forms.next() != null)) ?
+				         analyze(C.STATEMENT, forms.first())
+				                                                            :
+				         analyze(context, forms.first());
+				exprs = exprs.cons(e);
+				}
+			return new JopExpr(exprs);
+		}
+	}
+
+	public Object eval() throws Exception{
+	    System.err.println("eval");
+		Object ret = null;
+		for(Object o : exprs)
+		    {
+			Expr e = (Expr) o;
+			ret = e.eval();
+		    }
+		return ret;
+	}
+
+	public boolean canEmitPrimitive(){
+	    return true;
+	}
+
+	public void emitUnboxed(C context, ObjExpr objx, GeneratorAdapter gen){
+	    Symbol op = (Symbol) exprs.nth(0);
+	    MaybePrimitiveExpr x = (MaybePrimitiveExpr) exprs.nth(1);
+	    MaybePrimitiveExpr y = (MaybePrimitiveExpr) exprs.nth(2);
+	    x.emitUnboxed(C.EXPRESSION, objx, gen);
+	    y.emitUnboxed(C.EXPRESSION, objx, gen);
+	    gen.math(((Integer)ops.valAt(op)).intValue(), outType);
+	}
+
+	public void emit(C context, ObjExpr objx, GeneratorAdapter gen){
+	    emitUnboxed(context, objx, gen);
+	    gen.box(outType);
+	}
+
+	public boolean hasJavaClass() throws Exception{
+		return lastExpr().hasJavaClass();
+	}
+
+	public Class getJavaClass() throws Exception{
+		return lastExpr().getJavaClass();
+	}
+
+	private Expr lastExpr(){
+		return (Expr) exprs.nth(exprs.count() - 1);
+	}
+}
+
 public static class BindingInit{
 	LocalBinding binding;
 	Expr init;
@@ -5199,6 +5300,7 @@ public static Object preserveTag(ISeq src, Object dst) {
 }
 
 public static Object macroexpand1(Object x) throws Exception{
+    //System.err.println("macroexpand1");
 	if(x instanceof ISeq)
 		{
 		ISeq form = (ISeq) x;
@@ -5457,6 +5559,7 @@ static PathNode commonPath(PathNode n1, PathNode n2){
 }
 
 private static Expr analyzeSymbol(Symbol sym) throws Exception{
+    //System.err.println("analyzeSymbol");
 	Symbol tag = tagOf(sym);
 	if(sym.ns == null) //ns-qualified syms are always Vars
 		{

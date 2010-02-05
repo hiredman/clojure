@@ -4681,20 +4681,24 @@ public static class BodyExpr implements Expr, MaybePrimitiveExpr{
 
 
 public static class JopExpr implements Expr, MaybePrimitiveExpr{
-	PersistentVector exprs;
+    PersistentVector exprs;
     Type outType;
     IPersistentMap ops = PersistentHashMap.create(
       Symbol.create("+"),GeneratorAdapter.ADD,
       Symbol.create("/"),GeneratorAdapter.DIV,
       Symbol.create("-"),GeneratorAdapter.SUB,
-      Symbol.create("*"),GeneratorAdapter.MUL
+      Symbol.create("*"),GeneratorAdapter.MUL,
+      Symbol.create("rem"),GeneratorAdapter.REM,
+      Symbol.create("bit-shift-left"),GeneratorAdapter.SHL,
+      Symbol.create("bit-shift-right"), GeneratorAdapter.SHR
     );
     IPersistentMap types = PersistentHashMap.create(
       int.class, Type.INT_TYPE,
       float.class, Type.FLOAT_TYPE,
       short.class, Type.SHORT_TYPE,
       long.class, Type.LONG_TYPE,
-      double.class, Type.DOUBLE_TYPE
+      double.class, Type.DOUBLE_TYPE,
+      byte.class, Type.BYTE_TYPE
     );
 
 	public final PersistentVector exprs(){
@@ -4704,9 +4708,9 @@ public static class JopExpr implements Expr, MaybePrimitiveExpr{
 	public JopExpr(PersistentVector exprs){
 		this.exprs = exprs;
 		try {
-		    this.outType = (Type) types.valAt(((MaybePrimitiveExpr)exprs.get(1)).getJavaClass());
+		    this.outType = (Type) types.entryAt(((MaybePrimitiveExpr)RT.nth(exprs, 1)).getJavaClass()).getValue();
 		} catch(Exception e) {
-		    System.err.println(e.toString());
+		    throw new RuntimeException("I hate checked exceptions;"+e.getMessage());
 		}
 	}
 

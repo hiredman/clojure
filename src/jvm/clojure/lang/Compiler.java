@@ -4689,7 +4689,10 @@ public static class JopExpr implements Expr, MaybePrimitiveExpr{
       Symbol.create("rem"),GeneratorAdapter.REM,
       Symbol.create("bit-shift-left"),GeneratorAdapter.SHL,
       Symbol.create("bit-shift-right"), GeneratorAdapter.SHR,
-      Symbol.create("bit-xor"), GeneratorAdapter.XOR
+      Symbol.create("bit-xor"), GeneratorAdapter.XOR,
+      Symbol.create("and"), GeneratorAdapter.AND,
+      Symbol.create("or"), GeneratorAdapter.OR,
+      Symbol.create("bit-unsigned-shift-right"), GeneratorAdapter.USHR
     );
     IPersistentMap types = PersistentHashMap.create(
       int.class, Type.INT_TYPE,
@@ -5395,7 +5398,7 @@ private static Expr analyzeSeq(C context, ISeq form, String name) throws Excepti
 			
 		Object me = macroexpand1(form);
 		if(me != form)
-			return analyze(context, me, name);
+		    return analyze(context, me, name);
 
 		Object op = RT.first(form);
 		if(op == null)

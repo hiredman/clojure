@@ -84,7 +84,7 @@ static final String COMPILE_STUB_PREFIX = "compile__stub";
 
 static final Keyword protocolKey = Keyword.intern(null, "protocol");
 static final Keyword onKey = Keyword.intern(null, "on");
-
+    static final Keyword primitiveKey = Keyword.intern(null, "primitive");
 static final Symbol NS = Symbol.create("ns");
 static final Symbol IN_NS = Symbol.create("in-ns");
 
@@ -288,7 +288,6 @@ interface IParser{
 }
 
 static boolean isSpecial(Object sym){
-    //System.err.println("isSpecial");
 	return specials.containsKey(sym);
 }
 
@@ -2799,7 +2798,6 @@ static class InvokeExpr implements Expr{
 		this.fexpr = fexpr;
 		this.args = args;
 		this.line = line;
-		//System.err.println(fexpr.toString());
 		if(fexpr instanceof VarExpr)
 			{
 			Var fvar = ((VarExpr)fexpr).var;
@@ -3048,7 +3046,7 @@ static class InvokeExpr implements Expr{
 //		if(args.count() > MAX_POSITIONAL_ARITY)
 //			throw new IllegalArgumentException(
 //					String.format("No more than %d args supported", MAX_POSITIONAL_ARITY));
-
+	
 		return new InvokeExpr((String) SOURCE.deref(), (Integer) LINE.deref(), tagOf(form), fexpr, args);
 	}
 }
@@ -4690,7 +4688,8 @@ public static class JopExpr implements Expr, MaybePrimitiveExpr{
       Symbol.create("*"),GeneratorAdapter.MUL,
       Symbol.create("rem"),GeneratorAdapter.REM,
       Symbol.create("bit-shift-left"),GeneratorAdapter.SHL,
-      Symbol.create("bit-shift-right"), GeneratorAdapter.SHR
+      Symbol.create("bit-shift-right"), GeneratorAdapter.SHR,
+      Symbol.create("bit-xor"), GeneratorAdapter.XOR
     );
     IPersistentMap types = PersistentHashMap.create(
       int.class, Type.INT_TYPE,
@@ -4717,12 +4716,11 @@ public static class JopExpr implements Expr, MaybePrimitiveExpr{
 	static class Parser implements IParser{
 		public Expr parse(C context, Object frms) throws Exception{
 		    ISeq forms = (ISeq) frms;
-		    Symbol sym = (Symbol) RT.first(forms);
-		    forms = RT.next(forms);
-		    sym = (Symbol) RT.first(forms);
-		    forms = RT.next(forms);
+		    //context = C.STATEMENT;
 			if(Util.equals(RT.first(forms), JOP))
 				forms = RT.next(forms);
+			Symbol sym = (Symbol) RT.first(forms);
+			forms = RT.next(forms);
 			PersistentVector exprs = PersistentVector.EMPTY;
 			exprs=exprs.cons(sym);
 			for(; forms != null; forms = forms.next())
@@ -4739,7 +4737,7 @@ public static class JopExpr implements Expr, MaybePrimitiveExpr{
 	}
 
 	public Object eval() throws Exception{
-	    System.err.println("eval");
+	    System.err.println("JopExpr.eval");
 		Object ret = null;
 		for(Object o : exprs)
 		    {
@@ -5304,7 +5302,6 @@ public static Object preserveTag(ISeq src, Object dst) {
 }
 
 public static Object macroexpand1(Object x) throws Exception{
-    //System.err.println("macroexpand1");
 	if(x instanceof ISeq)
 		{
 		ISeq form = (ISeq) x;
@@ -5384,6 +5381,18 @@ private static Expr analyzeSeq(C context, ISeq form, String name) throws Excepti
 			RT.map(LINE, line));
 	try
 		{
+		    Object m = ((IObj) form).meta();
+		    if (m != null && RT.get(m, primitiveKey) != null) {
+			Object op = RT.first(form);
+			ISeq args = RT.next(form);
+			IPersistentVector argv = PersistentVector.EMPTY;
+			for (; RT.next(args) != null; args = RT.next(args))
+			    argv=argv.cons(macroexpand1(RT.first(args)));
+			argv=argv.cons(macroexpand1(RT.first(args)));
+			form=RT.seq(argv).cons(op);
+			return ((IParser) RT.get(specials, JOP)).parse(context,form);
+		    }
+			
 		Object me = macroexpand1(form);
 		if(me != form)
 			return analyze(context, me, name);
@@ -5563,7 +5572,6 @@ static PathNode commonPath(PathNode n1, PathNode n2){
 }
 
 private static Expr analyzeSymbol(Symbol sym) throws Exception{
-    //System.err.println("analyzeSymbol");
 	Symbol tag = tagOf(sym);
 	if(sym.ns == null) //ns-qualified syms are always Vars
 		{

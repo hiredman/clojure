@@ -3,3 +3,4 @@ target
 clojure.iws
 clojure.ipr
 nbproject/private/
+**.class

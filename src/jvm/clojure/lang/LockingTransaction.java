@@ -114,6 +114,7 @@ final HashSet<Ref> ensures = new HashSet<Ref>();   //all hold readLock
 void tryWriteLock(Ref ref){
 	try
 		{
+                    System.out.println("try to write lock");
 		if(!ref.lock.writeLock().tryLock(LOCK_WAIT_MSECS, TimeUnit.MILLISECONDS))
 			throw retryex;
 		}
@@ -125,6 +126,7 @@ void tryWriteLock(Ref ref){
 
 //returns the most recent val
 Object lock(Ref ref){
+    System.out.println("lock");
 	//can't upgrade readLock, so release it
 	releaseIfEnsured(ref);
 
@@ -244,6 +246,7 @@ static class Notify{
 }
 
 Object run(Callable fn) throws Exception{
+    System.out.println("run");
 	boolean done = false;
 	Object ret = null;
 	ArrayList<Ref> locked = new ArrayList<Ref>();
@@ -254,6 +257,7 @@ Object run(Callable fn) throws Exception{
 		try
 			{
 			getReadPoint();
+                        System.out.println("readPoint "+readPoint);
 			if(i == 0)
 				{
 				startPoint = readPoint;
@@ -268,10 +272,11 @@ Object run(Callable fn) throws Exception{
 					{
 					Ref ref = e.getKey();
 					if(sets.contains(ref)) continue;
-					
+                                        
 					boolean wasEnsured = ensures.contains(ref);
 					//can't upgrade readLock, so release it
 					releaseIfEnsured(ref);
+                                        System.out.println("locking "+ref);
 					tryWriteLock(ref);
 					locked.add(ref);
 					if(wasEnsured && ref.tvals != null && ref.tvals.point > readPoint)
@@ -292,8 +297,12 @@ Object run(Callable fn) throws Exception{
 					}
 				for(Ref ref : sets)
 					{
-					tryWriteLock(ref);
-					locked.add(ref);
+                                            if(ref.tvals != null && ref.tvals.point > readPoint) {
+                                                System.out.println("write failed");
+                                                throw retryex;
+                                            }
+                                            tryWriteLock(ref);
+                                            locked.add(ref);
 					}
 
 				//validate and enqueue notifications
@@ -307,6 +316,7 @@ Object run(Callable fn) throws Exception{
 				//no more client code to be called
 				long msecs = System.currentTimeMillis();
 				long commitPoint = getCommitPoint();
+                                System.out.println("commiting");
 				for(Map.Entry<Ref, Object> e : vals.entrySet())
 					{
 					Ref ref = e.getKey();
@@ -352,6 +362,7 @@ Object run(Callable fn) throws Exception{
 			locked.clear();
 			for(Ref r : ensures)
 				{
+                                    System.out.println("unlocking "+r);
 				r.lock.readLock().unlock();
 				}
 			ensures.clear();
@@ -379,6 +390,7 @@ Object run(Callable fn) throws Exception{
 		}
 	if(!done)
 		throw Util.runtimeException("Transaction failed after reaching retry limit");
+        System.out.println("run end");
 	return ret;
 }
 
@@ -414,16 +426,18 @@ Object doGet(Ref ref){
 }
 
 Object doSet(Ref ref, Object val){
+    System.out.println("doSet "+ref);
 	if(!info.running())
 		throw retryex;
 	if(commutes.containsKey(ref))
 		throw new IllegalStateException("Can't set after commute");
 	if(!sets.contains(ref))
-		{
+            {
 		sets.add(ref);
-		lock(ref);
-		}
+                //    lock(ref);
+            }
 	vals.put(ref, val);
+    System.out.println("doSet end "+ref);
 	return val;
 }
 

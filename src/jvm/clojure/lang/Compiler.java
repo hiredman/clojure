@@ -3461,8 +3461,9 @@ static class InvokeExpr implements Expr{
                 if (DEBUG.deref() != RT.F) {
                     System.out.println("parse fexpr "+fexpr);
                     if((fexpr instanceof LocalBindingExpr) &&
-                       (RT.get(LOCAL_ENV.deref(), ((LocalBindingExpr)fexpr).b.sym) == C.RETURN)){
+                       (((LocalBindingExpr)fexpr).b.magic  != null)){
                         System.out.println("special "+((LocalBindingExpr)fexpr).b.sym);
+                        return (Expr)((LocalBindingExpr)fexpr).b.magic.invoke(context, form);
                     }
                 }
 		if(fexpr instanceof VarExpr && ((VarExpr)fexpr).var.equals(INSTANCE))
@@ -5448,7 +5449,7 @@ public static class LocalBinding{
     public final PathNode clearPathRoot;
 	public boolean canBeCleared = true;
 	public boolean recurMistmatch = false;
-    public boolean special = false;
+    public IFn magic = null;
 
     public LocalBinding(int num, Symbol sym, Symbol tag, Expr init, boolean isArg,PathNode clearPathRoot)
                 {
@@ -5670,6 +5671,44 @@ public static class BindingInit{
 		this.init = init;
 	}
 }
+
+    public static class LiftedLambdaInvokeExpr extends UntypedExpr {
+        public final IPersistentVector args;
+        public final String name;
+
+        public LiftedLambdaInvokeExpr(String name, IPersistentVector args){
+            this.name=munge(name);
+            this.args=args;
+        }
+
+        public Object eval() {
+            throw Util.runtimeException("can't eval");
+        }
+
+        public void emit(C context, ObjExpr objx, GeneratorAdapter gen) {
+            for(int i = 0; i < Math.min(MAX_POSITIONAL_ARITY, args.count()); i++)
+                {
+                    Expr e = (Expr) args.nth(i);
+                    e.emit(C.EXPRESSION, objx, gen);
+                }
+            if(args.count() > MAX_POSITIONAL_ARITY)
+                {
+                    throw Util.runtimeException("to many args for lifting");
+                }
+            
+            if(context == C.RETURN)
+                {
+                    ObjMethod method = (ObjMethod) METHOD.deref();
+                    method.emitClearLocals(gen);
+                }
+            gen.invokeStatic(objx.objtype,
+                             new Method("invoke-"+name+"-"+args.count(),
+                                        OBJECT_TYPE,
+                                        ARG_TYPES[Math.min(MAX_POSITIONAL_ARITY + 1,
+                                                           args.count())]));
+        }
+    }
+    
     /* TODO:
        Use FnMethod/parse to parse, has isStatic flag, fn methods need
        to take a name argument to their constructor.
@@ -5679,6 +5718,15 @@ public static class BindingInit{
        figure out how to twiddle LocalBindings to change to emit static method call
 
        start by supporting manual tagging of static letfns
+       
+       copy parts of StaticMethodExpr to return from magic fn on localbinding
+
+       enclosing ObjExpr is passed into emit
+
+       maybe a phony StaticMethodExpr that can shove it's data into a
+       StaticMethodExpr once it figures out the class
+
+       StaticMethodExpr from HostExpr/parse
      */
 public static class LetFnExpr implements Expr{
 	public final PersistentVector bindingInits;
@@ -5728,10 +5776,20 @@ public static class LetFnExpr implements Expr{
                                         lb.canBeCleared = false;
                                         if(RT.get(RT.meta(bindings.nth(i)), staticKey) != null)
                                             {
-                                                lb.special = true;
-                                                LOCAL_ENV.set(RT.assoc(LOCAL_ENV.deref(),
-                                                                       bindings.nth(i),
-                                                                       C.RETURN));
+                                                System.out.println(LOCAL_ENV.deref());
+                                                lb.magic = new AFn(){
+                                                        public Object invoke (Object context,
+                                                                              Object form) {
+                                                            IPersistentVector args = PersistentVector.EMPTY;
+                                                            String name = RT.first(form).toString();
+                                                            for(form=RT.next(form); form != null;form=RT.next(form))
+                                                                {
+                                                                    args.cons(analyze(C.EXPRESSION, RT.first(form)));
+                                                                }
+                                                           
+                                                            return new LiftedLambdaInvokeExpr(name, args);
+                                                        }
+                                                    };
                                             }
                                         lbs = lbs.cons(lb);
                                     }

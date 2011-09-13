@@ -176,6 +176,7 @@ static
 
 	}
 
+static final public Var DEBUG = Var.create(RT.F).setDynamic();
 
 //symbol->localbinding
 static final public Var LOCAL_ENV = Var.create(null).setDynamic();
@@ -3272,6 +3273,13 @@ static class InvokeExpr implements Expr{
 	static Keyword methodMapKey = Keyword.intern("method-map");
 
 	public InvokeExpr(String source, int line, Symbol tag, Expr fexpr, IPersistentVector args) {
+            if (DEBUG.deref() == RT.T) {
+                System.out.println("source "+source);
+                System.out.println("line "+line);
+                System.out.println("tag "+tag);
+                System.out.println("fexpr "+fexpr);
+                System.out.println("args "+args);
+            }
 		this.source = source;
 		this.fexpr = fexpr;
 		this.args = args;
@@ -3450,6 +3458,13 @@ static class InvokeExpr implements Expr{
 		if(context != C.EVAL)
 			context = C.EXPRESSION;
 		Expr fexpr = analyze(context, form.first());
+                if (DEBUG.deref() != RT.F) {
+                    System.out.println("parse fexpr "+fexpr);
+                    if((fexpr instanceof LocalBindingExpr) &&
+                       (RT.get(LOCAL_ENV.deref(), ((LocalBindingExpr)fexpr).b.sym) == C.RETURN)){
+                        System.out.println("special "+((LocalBindingExpr)fexpr).b.sym);
+                    }
+                }
 		if(fexpr instanceof VarExpr && ((VarExpr)fexpr).var.equals(INSTANCE))
 			{
 			if(RT.second(form) instanceof Symbol)
@@ -4639,7 +4654,11 @@ static public class ObjExpr implements Expr{
 			}
 	}
 
-	private void emitLocal(GeneratorAdapter gen, LocalBinding lb, boolean clear){
+        private void emitLocal(GeneratorAdapter gen, LocalBinding lb, boolean clear){
+            lb.emit(this, gen, clear);
+        }
+
+        public void defaultEmitLocal(GeneratorAdapter gen, LocalBinding lb, boolean clear){
 		if(closes.containsKey(lb))
 			{
 			Class primc = lb.getPrimitiveType();
@@ -5429,6 +5448,7 @@ public static class LocalBinding{
     public final PathNode clearPathRoot;
 	public boolean canBeCleared = true;
 	public boolean recurMistmatch = false;
+    public boolean special = false;
 
     public LocalBinding(int num, Symbol sym, Symbol tag, Expr init, boolean isArg,PathNode clearPathRoot)
                 {
@@ -5460,6 +5480,10 @@ public static class LocalBinding{
 	public Class getPrimitiveType(){
 		return maybePrimitiveType(init);
 	}
+        
+    public void emit(ObjExpr obj, GeneratorAdapter gen, boolean clear){
+        obj.defaultEmitLocal(gen, this, clear);
+    }
 }
 
 public static class LocalBindingExpr implements Expr, MaybePrimitiveExpr, AssignableExpr{
@@ -5646,7 +5670,16 @@ public static class BindingInit{
 		this.init = init;
 	}
 }
+    /* TODO:
+       Use FnMethod/parse to parse, has isStatic flag, fn methods need
+       to take a name argument to their constructor.
 
+       stick in methods field on FnExpr to be emitted.
+
+       figure out how to twiddle LocalBindings to change to emit static method call
+
+       start by supporting manual tagging of static letfns
+     */
 public static class LetFnExpr implements Expr{
 	public final PersistentVector bindingInits;
 	public final Expr body;
@@ -5682,26 +5715,35 @@ public static class LetFnExpr implements Expr{
 				//pre-seed env (like Lisp labels)
 				PersistentVector lbs = PersistentVector.EMPTY;
 				for(int i = 0; i < bindings.count(); i += 2)
-					{
+                                    {
+
 					if(!(bindings.nth(i) instanceof Symbol))
-						throw new IllegalArgumentException(
-								"Bad binding form, expected symbol, got: " + bindings.nth(i));
-					Symbol sym = (Symbol) bindings.nth(i);
-					if(sym.getNamespace() != null)
-						throw Util.runtimeException("Can't let qualified name: " + sym);
-					LocalBinding lb = registerLocal(sym, tagOf(sym), null,false);
-					lb.canBeCleared = false;
-					lbs = lbs.cons(lb);
-					}
+                                            throw new IllegalArgumentException(
+                                                                               "Bad binding form, expected symbol, got: " + bindings.nth(i));
+                                        Symbol sym = (Symbol) bindings.nth(i);
+                                        if(sym.getNamespace() != null)
+                                            throw Util.runtimeException("Can't let qualified name: " + sym);
+                                        LocalBinding lb = registerLocal(sym, tagOf(sym), null,false);
+                                        
+                                        lb.canBeCleared = false;
+                                        if(RT.get(RT.meta(bindings.nth(i)), staticKey) != null)
+                                            {
+                                                lb.special = true;
+                                                LOCAL_ENV.set(RT.assoc(LOCAL_ENV.deref(),
+                                                                       bindings.nth(i),
+                                                                       C.RETURN));
+                                            }
+                                        lbs = lbs.cons(lb);
+                                    }
 				PersistentVector bindingInits = PersistentVector.EMPTY;
 				for(int i = 0; i < bindings.count(); i += 2)
 					{
-					Symbol sym = (Symbol) bindings.nth(i);
-					Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
-					LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
-					lb.init = init;
-					BindingInit bi = new BindingInit(lb, init);
-					bindingInits = bindingInits.cons(bi);
+                                            Symbol sym = (Symbol) bindings.nth(i);
+                                            Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
+                                            LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
+                                            lb.init = init;
+                                            BindingInit bi = new BindingInit(lb, init);
+                                            bindingInits = bindingInits.cons(bi);
 					}
 				return new LetFnExpr(bindingInits, (new BodyExpr.Parser()).parse(context, body));
 				}

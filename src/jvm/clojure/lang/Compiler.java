@@ -5682,10 +5682,12 @@ public static class BindingInit{
     public static class LiftedLambdaInvokeExpr extends UntypedExpr {
         public final IPersistentVector args;
         public final String name;
+        public final Type owner;
 
-        public LiftedLambdaInvokeExpr(String name, IPersistentVector args){
+        public LiftedLambdaInvokeExpr(String name, IPersistentVector args, Type owner){
             this.name=munge(name);
             this.args=args;
+            this.owner=owner;
         }
 
         public Object eval() {
@@ -5708,7 +5710,7 @@ public static class BindingInit{
                     ObjMethod method = (ObjMethod) METHOD.deref();
                     method.emitClearLocals(gen);
                 }
-            gen.invokeStatic(objx.objtype,
+            gen.invokeStatic(owner,
                              new Method("invoke_"+name+args.count(),
                                         OBJECT_TYPE,
                                         ARG_TYPES[Math.min(MAX_POSITIONAL_ARITY + 1,
@@ -5808,7 +5810,7 @@ public static class LetFnExpr implements Expr{
                                                                                        args.cons(analyze(C.EXPRESSION, RT.first(form)));
                                                                                    }
                                                                                
-                                                                               return new LiftedLambdaInvokeExpr(name, args);
+                                                                               return new LiftedLambdaInvokeExpr(name, args, ((ObjMethod)METHOD.deref()).objx.objtype);
                                                                            }
                                                                        }));
                                                 // count of lbs needs to be half of bindings

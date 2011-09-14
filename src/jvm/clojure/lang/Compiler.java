@@ -5836,7 +5836,7 @@ public static class LetFnExpr implements Expr{
                                             else 
                                                 {
                                                     ISeq f = RT.next(RT.next((ISeq)bindings.nth(i + 1)));
-                                                    String n = RT.first((ISeq)bindings.nth(i + 1)).toString();
+                                                    String n = sym.toString();
                                                     for(;f != null; f=RT.next(f))
                                                         {
                                                             ISeq b = (ISeq)RT.first(f);

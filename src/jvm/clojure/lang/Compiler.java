@@ -5770,6 +5770,103 @@ public static class LetFnExpr implements Expr{
 
 			IPersistentMap dynamicBindings = RT.map(LOCAL_ENV, LOCAL_ENV.deref(),
 			                                        NEXT_LOCAL_NUM, NEXT_LOCAL_NUM.deref());
+                        try 
+                            {
+                                Var.pushThreadBindings(dynamicBindings);
+                                IPersistentSet lbs = PersistentHashSet.EMPTY;
+                                for(int i = 0; i < bindings.count(); i += 2)
+                                    {
+                                        if(!(bindings.nth(i) instanceof Symbol))
+                                            throw new IllegalArgumentException("Bad binding form, expected symbol, got: " + bindings.nth(i));
+                                        Symbol sym = (Symbol) bindings.nth(i);
+                                        if(sym.getNamespace() != null)
+                                            throw Util.runtimeException("Can't let qualified name: " + sym);
+                                        LocalBinding lb = registerLocal(sym, tagOf(sym), null,false);
+                                        lbs=(IPersistentSet)lbs.cons(lb);
+                                        
+                                    }
+                                IPersistentVector exprs = PersistentVector.EMPTY;
+                                IPersistentSet names = PersistentHashSet.EMPTY;
+
+                                for(int i = 0; i < bindings.count(); i += 2)
+                                    {
+                                        Symbol sym = (Symbol) bindings.nth(i);
+                                        Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
+                                        exprs=exprs.cons(init);
+                                        names=(IPersistentSet)names.cons(sym);
+                                    }
+                                Expr bodyExpr = analyze(context, RT.cons(DO, RT.next(RT.next(form))));
+                                exprs=exprs.cons(bodyExpr);
+
+                                ArrayList stack1 = new ArrayList((Collection)exprs);
+                                while(stack1.size() > 0) {
+                                    Object itm = stack1.remove(0);
+
+                                    if(itm instanceof FnExpr)
+                                        {
+                                            for(ISeq s = RT.seq(((FnExpr) itm).methods);
+                                                s != null;
+                                                s = RT.next(s))
+                                                {
+                                                    stack1.add(RT.first(s));
+                                                }
+                                        }
+                                    else if (itm instanceof ObjMethod)
+                                        {
+                                            stack1.add(((ObjMethod) itm).body);
+                                        }
+                                    else if (itm instanceof BodyExpr)
+                                        {
+                                            for(ISeq s = RT.seq(((BodyExpr) itm).exprs);
+                                                s != null;
+                                                s = RT.next(s))
+                                                {
+                                                    stack1.add(RT.first(s));
+                                                }
+                                        }
+                                    else if (itm instanceof InvokeExpr)
+                                        {
+                                            InvokeExpr i = (InvokeExpr) itm;
+                                            if (!(i.fexpr instanceof LocalBindingExpr))
+                                                {
+                                                    stack1.add(i.fexpr);
+
+                                                    if(DEBUG.deref() == RT.T)
+                                                        System.out.println("fexpr "+i.fexpr);
+                                                }
+                                
+                                            for(ISeq s = RT.seq(i.args);
+                                                s != null;
+                                                s = RT.next(s))
+                                                {
+                                                    stack1.add(RT.first(s));
+                                                }
+                                        }
+                                    else if (itm instanceof StringExpr)
+                                        {
+                                            //
+                                        }
+                                    else if (itm instanceof LocalBindingExpr)
+                                        {
+                                            LocalBinding x = ((LocalBindingExpr)itm).b;
+                                            if (lbs.contains(x))
+                                                {
+                                                    names=names.disjoin(x.sym);
+                                                }
+                                        }
+                                    else
+                                        {
+                                            if(DEBUG.deref() == RT.T)
+                                                System.out.println(itm);
+                                        }
+                                } 
+                                if(DEBUG.deref() == RT.T)
+                                    System.out.println("statics "+names.toString());
+                            } 
+                        finally
+                            {
+                                Var.popThreadBindings();
+                            }
 
 			try
 				{

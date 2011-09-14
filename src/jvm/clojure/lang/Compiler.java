@@ -5457,7 +5457,6 @@ public static class LocalBinding{
     public final PathNode clearPathRoot;
 	public boolean canBeCleared = true;
 	public boolean recurMistmatch = false;
-    public IFn magic = null;
 
     public LocalBinding(int num, Symbol sym, Symbol tag, Expr init, boolean isArg,PathNode clearPathRoot)
                 {
@@ -5799,6 +5798,7 @@ public static class LetFnExpr implements Expr{
                                             }
                                         else 
                                             {
+                                                final ObjExpr owner = ((ObjMethod)METHOD.deref()).objx;
                                                 LOCAL_ENV.set(RT.assoc(LOCAL_ENV.deref(),
                                                                        sym,
                                                                        new AFn(){
@@ -5811,7 +5811,7 @@ public static class LetFnExpr implements Expr{
                                                                                        args.cons(analyze(C.EXPRESSION, RT.first(form)));
                                                                                    }
                                                                                
-                                                                               return new LiftedLambdaInvokeExpr(name, args, ((ObjMethod)METHOD.deref()).objx.objtype);
+                                                                               return new LiftedLambdaInvokeExpr(name, args, owner.objtype);
                                                                            }
                                                                        }));
                                                 // count of lbs needs to be half of bindings

@@ -4265,8 +4265,9 @@ static public class ObjExpr implements Expr{
             for(ISeq s = RT.seq(methods); s != null; s = s.next())
                 {
                     ObjMethod method = (ObjMethod) s.first();
-                    if (DEBUG.deref() == RT.T)
-                        System.out.println("emitting "+method);
+                    if (DEBUG.deref() == RT.T) {
+                        System.out.println("emitting "+method.getMethodName()+" for "+this);
+                    }
                     method.emit(this, cv);
                 }
 	}
@@ -4877,6 +4878,7 @@ public static class FnMethod extends ObjMethod{
 	Class[] argclasses;
 	Class retClass;
 	String prim ;
+        public boolean isStaticMethod = false;
 
     public String name = null;
 
@@ -5039,60 +5041,80 @@ public static class FnMethod extends ObjMethod{
 	}
 
 	public void emit(ObjExpr fn, ClassVisitor cv){
+            if(DEBUG.deref() == RT.T)
+                System.out.println("FnMethod emit");
+
 		if(prim != null)
 			doEmitPrim(fn, cv);
 		else if(fn.isStatic)
 			doEmitStatic(fn,cv);
+                else if(isStaticMethod)
+                    doEmitStaticMethod(getMethodName(), fn, cv);
 		else
 			doEmit(fn,cv);
 	}
 
+    public void doEmitStaticMethod(String methodName, ObjExpr fn, ClassVisitor cv){
+        if(DEBUG.deref() == RT.T)
+            System.out.println("FnMethod doEmitStaticMethod");
+
+        if(DEBUG.deref() == RT.T)
+            System.out.println(methodName+" "+getReturnType()+" "+argtypes);
+        if(argtypes == null)
+            argtypes = new Type[0];
+        Method ms = new Method(methodName, getReturnType(), argtypes);
+        
+        GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC + ACC_STATIC,
+                                                    ms,
+                                                    null,
+                                                    //todo don't hardwire this
+                                                    EXCEPTION_TYPES,
+                                                    cv);
+        gen.visitCode();
+        Label loopLabel = gen.mark();
+        gen.visitLineNumber(line, loopLabel);
+        try
+            {
+                Var.pushThreadBindings(RT.map(LOOP_LABEL, loopLabel, METHOD, this));
+                emitBody(objx, gen, retClass, body);
+                
+                Label end = gen.mark();
+                for(ISeq lbs = argLocals.seq(); lbs != null; lbs = lbs.next())
+                    {
+                        LocalBinding lb = (LocalBinding) lbs.first();
+                        gen.visitLocalVariable(lb.name, argtypes[lb.idx].getDescriptor(), null, loopLabel, end, lb.idx);
+                    }
+            }
+        catch(Exception e)
+            {
+                throw Util.runtimeException(e);
+            }
+        finally
+            {
+                Var.popThreadBindings();
+            }
+        
+        gen.returnValue();
+        //gen.visitMaxs(1, 1);
+        gen.endMethod();
+    }
+    
 	public void doEmitStatic(ObjExpr fn, ClassVisitor cv){
-		Method ms = new Method("invokeStatic", getReturnType(), argtypes);
-
-		GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC + ACC_STATIC,
-		                                            ms,
-		                                            null,
-		                                            //todo don't hardwire this
-		                                            EXCEPTION_TYPES,
-		                                            cv);
-		gen.visitCode();
-		Label loopLabel = gen.mark();
-		gen.visitLineNumber(line, loopLabel);
-		try
-			{
-			Var.pushThreadBindings(RT.map(LOOP_LABEL, loopLabel, METHOD, this));
-			emitBody(objx, gen, retClass, body);
-
-			Label end = gen.mark();
-			for(ISeq lbs = argLocals.seq(); lbs != null; lbs = lbs.next())
-				{
-				LocalBinding lb = (LocalBinding) lbs.first();
-				gen.visitLocalVariable(lb.name, argtypes[lb.idx].getDescriptor(), null, loopLabel, end, lb.idx);
-				}
-			}
-		catch(Exception e)
-			{
-			throw Util.runtimeException(e);
-			}
-		finally
-			{
-			Var.popThreadBindings();
-			}
-
-		gen.returnValue();
-		//gen.visitMaxs(1, 1);
-		gen.endMethod();
-
+            if(DEBUG.deref() == RT.T)
+                System.out.println("FnMethod doEmitStatic");
+            
+            doEmitStaticMethod("invokeStatic", fn, cv);
+        
+               Method ms = new Method(getMethodName(), getReturnType(), argtypes);
 	//generate the regular invoke, calling the static method
 		Method m = new Method(getMethodName(), OBJECT_TYPE, getArgTypes());
 
-		gen = new GeneratorAdapter(ACC_PUBLIC,
-		                           m,
-		                           null,
-		                           //todo don't hardwire this
-		                           EXCEPTION_TYPES,
-		                           cv);
+		GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC,
+                                                            m,
+                                                            null,
+                                                            //todo don't hardwire this
+                                                            EXCEPTION_TYPES,
+                                                            cv);
 		gen.visitCode();
 		for(int i = 0; i < argtypes.length; i++)
 			{
@@ -5374,6 +5396,9 @@ abstract public static class ObjMethod{
 	abstract Type[] getArgTypes();
 
 	public void emit(ObjExpr fn, ClassVisitor cv){
+            if(DEBUG.deref() == RT.T)
+                System.out.println("ObjMethod emit");
+
 		Method m = new Method(getMethodName(), getReturnType(), getArgTypes());
 
 		GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC,
@@ -5848,6 +5873,7 @@ public static class LetFnExpr implements Expr{
                                                                                            b,
                                                                                            true);
                                                             init.name="invoke_"+n+init.argLocals.count();
+                                                            init.isStaticMethod=true;
                                                             if (DEBUG.deref() == RT.T)
                                                                 System.out.println("generated "+init);
                                                             methods=methods.cons(init);
@@ -5855,16 +5881,15 @@ public static class LetFnExpr implements Expr{
                                                 }
 					}
                                 if(DEBUG.deref() == RT.T)
-                                    System.out.println(methods.toString());
-                                ISeq m = 
-                                    RT.seq(((FnExpr)((FnMethod)METHOD.deref()).objx).methods);
-                                if (m == null) {
-                                    m = PersistentList.EMPTY;
-                                }
-                                for(int i = 0; i < methods.count(); i++)
-                                    m = m.cons(methods.nth(i));
-                                ((FnExpr)((FnMethod)METHOD.deref()).objx).methods = m;
+                                    {
+                                        System.out.println(methods.toString());
+                                        ObjExpr o = ((FnMethod)METHOD.deref()).objx;
+                                        System.out.println("objx when parsing "+o.objtype);
+                                    }
 
+                                for(ISeq s = RT.seq(methods); s != null; s = RT.next(s))
+                                    ((FnMethod)METHOD.deref()).objx.methods =
+                                        RT.cons(RT.first(s), ((FnMethod)METHOD.deref()).objx.methods);
 				return new LetFnExpr(bindingInits, (new BodyExpr.Parser()).parse(context, body));
 				}
 			finally

@@ -4877,6 +4877,8 @@ public static class FnMethod extends ObjMethod{
 	Class retClass;
 	String prim ;
 
+    public String name = null;
+
 	public FnMethod(ObjExpr objx, ObjMethod parent){
 		super(objx, parent);
 	}
@@ -5226,6 +5228,9 @@ public static class FnMethod extends ObjMethod{
 	}
 
 	String getMethodName(){
+            if (this.name != null)
+                return this.name;
+            else 
 		return isVariadic()?"doInvoke":"invoke";
 	}
 

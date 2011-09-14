@@ -3457,15 +3457,13 @@ static class InvokeExpr implements Expr{
 	static public Expr parse(C context, ISeq form) {
 		if(context != C.EVAL)
 			context = C.EXPRESSION;
+
+                if (RT.get(LOCAL_ENV.deref(), form.first()) != null &&
+                    RT.get(LOCAL_ENV.deref(),form.first()) instanceof IFn)
+                    return (Expr)(((IFn)RT.get(LOCAL_ENV.deref(),form.first())).invoke(context,form));
+
 		Expr fexpr = analyze(context, form.first());
-                if (DEBUG.deref() != RT.F) {
-                    System.out.println("parse fexpr "+fexpr);
-                    if((fexpr instanceof LocalBindingExpr) &&
-                       (((LocalBindingExpr)fexpr).b.magic  != null)){
-                        System.out.println("special "+((LocalBindingExpr)fexpr).b.sym);
-                        return (Expr)((LocalBindingExpr)fexpr).b.magic.invoke(context, form);
-                    }
-                }
+
 		if(fexpr instanceof VarExpr && ((VarExpr)fexpr).var.equals(INSTANCE))
 			{
 			if(RT.second(form) instanceof Symbol)

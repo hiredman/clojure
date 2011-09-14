@@ -5708,13 +5708,13 @@ public static class BindingInit{
                     method.emitClearLocals(gen);
                 }
             gen.invokeStatic(objx.objtype,
-                             new Method("invoke-"+name+"-"+args.count(),
+                             new Method("invoke_"+name+args.count(),
                                         OBJECT_TYPE,
                                         ARG_TYPES[Math.min(MAX_POSITIONAL_ARITY + 1,
                                                            args.count())]));
         }
     }
-    
+
     /* TODO:
        Use FnMethod/parse to parse, has isStatic flag, fn methods need
        to take a name argument to their constructor.
@@ -5774,6 +5774,8 @@ public static class LetFnExpr implements Expr{
 
 				//pre-seed env (like Lisp labels)
 				PersistentVector lbs = PersistentVector.EMPTY;
+                                PersistentVector methods = PersistentVector.EMPTY;
+
 				for(int i = 0; i < bindings.count(); i += 2)
                                     {
 
@@ -5781,40 +5783,85 @@ public static class LetFnExpr implements Expr{
                                             throw new IllegalArgumentException(
                                                                                "Bad binding form, expected symbol, got: " + bindings.nth(i));
                                         Symbol sym = (Symbol) bindings.nth(i);
-                                        if(sym.getNamespace() != null)
-                                            throw Util.runtimeException("Can't let qualified name: " + sym);
-                                        LocalBinding lb = registerLocal(sym, tagOf(sym), null,false);
-                                        
-                                        lb.canBeCleared = false;
-                                        if(RT.get(RT.meta(bindings.nth(i)), staticKey) != null)
+
+                                        if(RT.get(RT.meta(sym), staticKey) == null)
                                             {
-                                                System.out.println(LOCAL_ENV.deref());
-                                                lb.magic = new AFn(){
-                                                        public Object invoke (Object context,
-                                                                              Object form) {
-                                                            IPersistentVector args = PersistentVector.EMPTY;
-                                                            String name = RT.first(form).toString();
-                                                            for(form=RT.next(form); form != null;form=RT.next(form))
-                                                                {
-                                                                    args.cons(analyze(C.EXPRESSION, RT.first(form)));
-                                                                }
-                                                           
-                                                            return new LiftedLambdaInvokeExpr(name, args);
-                                                        }
-                                                    };
+                                                if(sym.getNamespace() != null)
+                                                    throw Util.runtimeException("Can't let qualified name: " + sym);
+                                                LocalBinding lb = registerLocal(sym, tagOf(sym), null,false);
+                                                
+                                                lb.canBeCleared = false;
+                                                lbs = lbs.cons(lb);
                                             }
-                                        lbs = lbs.cons(lb);
+                                        else 
+                                            {
+                                                LOCAL_ENV.set(RT.assoc(LOCAL_ENV.deref(),
+                                                                       sym,
+                                                                       new AFn(){
+                                                                           public Object invoke (Object context,
+                                                                                                 Object form) {
+                                                                               IPersistentVector args = PersistentVector.EMPTY;
+                                                                               String name = RT.first(form).toString();
+                                                                               for(form=RT.next(form); form != null;form=RT.next(form))
+                                                                                   {
+                                                                                       args.cons(analyze(C.EXPRESSION, RT.first(form)));
+                                                                                   }
+                                                                               
+                                                                               return new LiftedLambdaInvokeExpr(name, args);
+                                                                           }
+                                                                       }));
+                                                // count of lbs needs to be half of bindings
+                                                lbs=lbs.cons(null);
+                                            }
+
                                     }
+                                if(DEBUG.deref() == RT.T){
+                                    System.out.println(lbs.toString());
+                                    System.out.println(((ObjMethod)METHOD.deref()).objx.objtype);
+                                }
 				PersistentVector bindingInits = PersistentVector.EMPTY;
 				for(int i = 0; i < bindings.count(); i += 2)
 					{
                                             Symbol sym = (Symbol) bindings.nth(i);
-                                            Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
-                                            LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
-                                            lb.init = init;
-                                            BindingInit bi = new BindingInit(lb, init);
-                                            bindingInits = bindingInits.cons(bi);
+                                            if(RT.get(RT.meta(sym), staticKey) == null)
+                                                {
+                                                    Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
+                                                    if(DEBUG.deref() == RT.T)
+                                                        System.out.println(""+i/2);
+                                                    LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
+                                                    lb.init = init;
+                                                    BindingInit bi = new BindingInit(lb, init);
+                                                    bindingInits = bindingInits.cons(bi);
+                                                }
+                                            else 
+                                                {
+                                                    ISeq f = RT.next(RT.next((ISeq)bindings.nth(i + 1)));
+                                                    String n = RT.first((ISeq)bindings.nth(i + 1)).toString();
+                                                    for(;f != null; f=RT.next(f))
+                                                        {
+                                                            ISeq b = (ISeq)RT.first(f);
+                                                            System.out.println(b);
+                                                            FnMethod init = FnMethod.parse(((ObjMethod)METHOD.deref()).objx,
+                                                                                           b,
+                                                                                           true);
+                                                            init.name="invoke_"+n+init.argLocals.count();
+                                                            if (DEBUG.deref() == RT.T)
+                                                                System.out.println("generated "+init);
+                                                            methods=methods.cons(init);
+                                                    }
+                                                }
 					}
+                                if(DEBUG.deref() == RT.T)
+                                    System.out.println(methods.toString());
+                                ISeq m = 
+                                    RT.seq(((FnExpr)((FnMethod)METHOD.deref()).objx).methods);
+                                if (m == null) {
+                                    m = PersistentList.EMPTY;
+                                }
+                                for(int i = 0; i < methods.count(); i++)
+                                    m = m.cons(methods.nth(i));
+                                ((FnExpr)((FnMethod)METHOD.deref()).objx).methods = m;
+
 				return new LetFnExpr(bindingInits, (new BodyExpr.Parser()).parse(context, body));
 				}
 			finally
@@ -6946,13 +6993,18 @@ static void closeOver(LocalBinding b, ObjMethod method){
 static LocalBinding referenceLocal(Symbol sym) {
 	if(!LOCAL_ENV.isBound())
 		return null;
-	LocalBinding b = (LocalBinding) RT.get(LOCAL_ENV.deref(), sym);
-	if(b != null)
-		{
-		ObjMethod method = (ObjMethod) METHOD.deref();
-		closeOver(b, method);
-		}
-	return b;
+        Object local = RT.get(LOCAL_ENV.deref(), sym);
+        if(local != null && local instanceof LocalBinding)
+            {
+                LocalBinding b = (LocalBinding) local;
+                    if(b != null)
+                        {
+                    ObjMethod method = (ObjMethod) METHOD.deref();
+                    closeOver(b, method);
+                        }
+                return b;
+            }
+       return null;
 }
 
 private static Symbol tagOf(Object o){

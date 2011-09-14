@@ -5061,11 +5061,12 @@ public static class FnMethod extends ObjMethod{
                 emitBody(objx, gen, retClass, body);
                 
                 Label end = gen.mark();
-                for(ISeq lbs = argLocals.seq(); lbs != null; lbs = lbs.next())
-                    {
-                        LocalBinding lb = (LocalBinding) lbs.first();
-                        gen.visitLocalVariable(lb.name, argtypes[lb.idx].getDescriptor(), null, loopLabel, end, lb.idx);
-                    }
+                if(RT.count(argtypes) > 0)
+                    for(ISeq lbs = argLocals.seq(); lbs != null; lbs = lbs.next())
+                        {
+                            LocalBinding lb = (LocalBinding) lbs.first();
+                            gen.visitLocalVariable(lb.name, argtypes[lb.idx].getDescriptor(), null, loopLabel, end, lb.idx);
+                        }
             }
         catch(Exception e)
             {
@@ -5770,6 +5771,10 @@ public static class LetFnExpr implements Expr{
 
 			IPersistentMap dynamicBindings = RT.map(LOCAL_ENV, LOCAL_ENV.deref(),
 			                                        NEXT_LOCAL_NUM, NEXT_LOCAL_NUM.deref());
+
+                        IPersistentSet statics = PersistentHashSet.EMPTY;
+                        if (DEBUG.deref() == RT.T)
+                            {
                         try 
                             {
                                 Var.pushThreadBindings(dynamicBindings);
@@ -5797,6 +5802,10 @@ public static class LetFnExpr implements Expr{
                                     }
                                 Expr bodyExpr = analyze(context, RT.cons(DO, RT.next(RT.next(form))));
                                 exprs=exprs.cons(bodyExpr);
+
+                                if(DEBUG.deref() == RT.T)
+                                    System.out.println("lbs "+lbs.toString());
+
 
                                 ArrayList stack1 = new ArrayList((Collection)exprs);
                                 while(stack1.size() > 0) {
@@ -5828,12 +5837,7 @@ public static class LetFnExpr implements Expr{
                                         {
                                             InvokeExpr i = (InvokeExpr) itm;
                                             if (!(i.fexpr instanceof LocalBindingExpr))
-                                                {
-                                                    stack1.add(i.fexpr);
-
-                                                    if(DEBUG.deref() == RT.T)
-                                                        System.out.println("fexpr "+i.fexpr);
-                                                }
+                                                stack1.add(i.fexpr);
                                 
                                             for(ISeq s = RT.seq(i.args);
                                                 s != null;
@@ -5842,14 +5846,15 @@ public static class LetFnExpr implements Expr{
                                                     stack1.add(RT.first(s));
                                                 }
                                         }
-                                    else if (itm instanceof StringExpr)
+                                    else if (itm instanceof LiteralExpr ||
+                                             itm instanceof VarExpr)
                                         {
                                             //
                                         }
                                     else if (itm instanceof LocalBindingExpr)
                                         {
                                             LocalBinding x = ((LocalBindingExpr)itm).b;
-                                            if (lbs.contains(x))
+                                            if (names.contains(x.sym))
                                                 {
                                                     names=names.disjoin(x.sym);
                                                 }
@@ -5860,12 +5865,12 @@ public static class LetFnExpr implements Expr{
                                                 System.out.println(itm);
                                         }
                                 } 
-                                if(DEBUG.deref() == RT.T)
-                                    System.out.println("statics "+names.toString());
+                                statics=names;
                             } 
                         finally
                             {
                                 Var.popThreadBindings();
+                            }
                             }
 
 			try
@@ -5884,7 +5889,7 @@ public static class LetFnExpr implements Expr{
                                                                                "Bad binding form, expected symbol, got: " + bindings.nth(i));
                                         Symbol sym = (Symbol) bindings.nth(i);
 
-                                        if(RT.get(RT.meta(sym), staticKey) == null)
+                                        if(!statics.contains(sym))
                                             {
                                                 if(sym.getNamespace() != null)
                                                     throw Util.runtimeException("Can't let qualified name: " + sym);
@@ -5895,6 +5900,7 @@ public static class LetFnExpr implements Expr{
                                             }
                                         else 
                                             {
+                                                System.out.println("compiling "+sym+" as static");
                                                 final ObjExpr owner = ((ObjMethod)METHOD.deref()).objx;
                                                 LOCAL_ENV.set(RT.assoc(LOCAL_ENV.deref(),
                                                                        sym,
@@ -5920,7 +5926,7 @@ public static class LetFnExpr implements Expr{
 				for(int i = 0; i < bindings.count(); i += 2)
 					{
                                             Symbol sym = (Symbol) bindings.nth(i);
-                                            if(RT.get(RT.meta(sym), staticKey) == null)
+                                            if(!statics.contains(sym))
                                                 {
                                                     Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
                                                     LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
@@ -5939,8 +5945,10 @@ public static class LetFnExpr implements Expr{
                                                                                            b,
                                                                                            true);
                                                             init.name="invoke_"+n+init.argLocals.count();
+                                                            init.argtypes=ARG_TYPES[init.argLocals.count()];
                                                             init.isStaticMethod=true;
                                                             methods=methods.cons(init);
+                                                            
                                                     }
                                                 }
 					}

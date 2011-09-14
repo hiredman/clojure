@@ -5733,6 +5733,12 @@ public static class BindingInit{
        StaticMethodExpr once it figures out the class
 
        StaticMethodExpr from HostExpr/parse
+
+       stop :statics from getting registered as locals, have letfns
+       emit required static methods
+
+       deref METHOD to get on ObjMethod and follow parent pointer to
+       add elements to methods
      */
 public static class LetFnExpr implements Expr{
 	public final PersistentVector bindingInits;

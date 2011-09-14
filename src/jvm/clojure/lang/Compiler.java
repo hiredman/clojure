@@ -5803,10 +5803,6 @@ public static class LetFnExpr implements Expr{
                                 Expr bodyExpr = analyze(context, RT.cons(DO, RT.next(RT.next(form))));
                                 exprs=exprs.cons(bodyExpr);
 
-                                if(DEBUG.deref() == RT.T)
-                                    System.out.println("lbs "+lbs.toString());
-
-
                                 ArrayList stack1 = new ArrayList((Collection)exprs);
                                 while(stack1.size() > 0) {
                                     Object itm = stack1.remove(0);
@@ -6637,6 +6633,9 @@ static Object macroexpand(Object form) {
 }
 
 private static Expr analyzeSeq(C context, ISeq form, String name) {
+    if (DEBUG.deref() == RT.T)
+        System.out.println("analyzeSeq "+form);
+
 	Integer line = (Integer) LINE.deref();
 	if(RT.meta(form) != null && RT.meta(form).containsKey(RT.LINE_KEY))
 		line = (Integer) RT.meta(form).valAt(RT.LINE_KEY);

@@ -3273,13 +3273,6 @@ static class InvokeExpr implements Expr{
 	static Keyword methodMapKey = Keyword.intern("method-map");
 
 	public InvokeExpr(String source, int line, Symbol tag, Expr fexpr, IPersistentVector args) {
-            if (DEBUG.deref() == RT.T) {
-                System.out.println("source "+source);
-                System.out.println("line "+line);
-                System.out.println("tag "+tag);
-                System.out.println("fexpr "+fexpr);
-                System.out.println("args "+args);
-            }
 		this.source = source;
 		this.fexpr = fexpr;
 		this.args = args;
@@ -4265,9 +4258,6 @@ static public class ObjExpr implements Expr{
             for(ISeq s = RT.seq(methods); s != null; s = s.next())
                 {
                     ObjMethod method = (ObjMethod) s.first();
-                    if (DEBUG.deref() == RT.T) {
-                        System.out.println("emitting "+method.getMethodName()+" for "+this);
-                    }
                     method.emit(this, cv);
                 }
 	}
@@ -5041,9 +5031,6 @@ public static class FnMethod extends ObjMethod{
 	}
 
 	public void emit(ObjExpr fn, ClassVisitor cv){
-            if(DEBUG.deref() == RT.T)
-                System.out.println("FnMethod emit");
-
 		if(prim != null)
 			doEmitPrim(fn, cv);
 		else if(fn.isStatic)
@@ -5055,11 +5042,6 @@ public static class FnMethod extends ObjMethod{
 	}
 
     public void doEmitStaticMethod(String methodName, ObjExpr fn, ClassVisitor cv){
-        if(DEBUG.deref() == RT.T)
-            System.out.println("FnMethod doEmitStaticMethod");
-
-        if(DEBUG.deref() == RT.T)
-            System.out.println(methodName+" "+getReturnType()+" "+argtypes);
         if(argtypes == null)
             argtypes = new Type[0];
         Method ms = new Method(methodName, getReturnType(), argtypes);
@@ -5100,9 +5082,6 @@ public static class FnMethod extends ObjMethod{
     }
     
 	public void doEmitStatic(ObjExpr fn, ClassVisitor cv){
-            if(DEBUG.deref() == RT.T)
-                System.out.println("FnMethod doEmitStatic");
-            
             doEmitStaticMethod("invokeStatic", fn, cv);
         
                Method ms = new Method(getMethodName(), getReturnType(), argtypes);
@@ -5396,9 +5375,6 @@ abstract public static class ObjMethod{
 	abstract Type[] getArgTypes();
 
 	public void emit(ObjExpr fn, ClassVisitor cv){
-            if(DEBUG.deref() == RT.T)
-                System.out.println("ObjMethod emit");
-
 		Method m = new Method(getMethodName(), getReturnType(), getArgTypes());
 
 		GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC,
@@ -5843,10 +5819,6 @@ public static class LetFnExpr implements Expr{
                                             }
 
                                     }
-                                if(DEBUG.deref() == RT.T){
-                                    System.out.println(lbs.toString());
-                                    System.out.println(((ObjMethod)METHOD.deref()).objx.objtype);
-                                }
 				PersistentVector bindingInits = PersistentVector.EMPTY;
 				for(int i = 0; i < bindings.count(); i += 2)
 					{
@@ -5854,8 +5826,6 @@ public static class LetFnExpr implements Expr{
                                             if(RT.get(RT.meta(sym), staticKey) == null)
                                                 {
                                                     Expr init = analyze(C.EXPRESSION, bindings.nth(i + 1), sym.name);
-                                                    if(DEBUG.deref() == RT.T)
-                                                        System.out.println(""+i/2);
                                                     LocalBinding lb = (LocalBinding) lbs.nth(i / 2);
                                                     lb.init = init;
                                                     BindingInit bi = new BindingInit(lb, init);
@@ -5868,25 +5838,15 @@ public static class LetFnExpr implements Expr{
                                                     for(;f != null; f=RT.next(f))
                                                         {
                                                             ISeq b = (ISeq)RT.first(f);
-                                                            System.out.println(b);
                                                             FnMethod init = FnMethod.parse(((ObjMethod)METHOD.deref()).objx,
                                                                                            b,
                                                                                            true);
                                                             init.name="invoke_"+n+init.argLocals.count();
                                                             init.isStaticMethod=true;
-                                                            if (DEBUG.deref() == RT.T)
-                                                                System.out.println("generated "+init);
                                                             methods=methods.cons(init);
                                                     }
                                                 }
 					}
-                                if(DEBUG.deref() == RT.T)
-                                    {
-                                        System.out.println(methods.toString());
-                                        ObjExpr o = ((FnMethod)METHOD.deref()).objx;
-                                        System.out.println("objx when parsing "+o.objtype);
-                                    }
-
                                 for(ISeq s = RT.seq(methods); s != null; s = RT.next(s))
                                     ((FnMethod)METHOD.deref()).objx.methods =
                                         RT.cons(RT.first(s), ((FnMethod)METHOD.deref()).objx.methods);

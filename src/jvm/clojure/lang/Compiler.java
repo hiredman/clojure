@@ -3666,7 +3666,8 @@ static public class FnExpr extends ObjExpr{
 			if(variadicMethod != null)
 				methods = RT.conj(methods, variadicMethod);
 
-			fn.methods = methods;
+                        for(ISeq s = RT.seq(methods); s != null; s = RT.next(s))
+                            fn.methods = RT.cons(RT.first(s), fn.methods);
 			fn.variadicMethod = variadicMethod;
 			fn.keywords = (IPersistentMap) KEYWORDS.deref();
 			fn.vars = (IPersistentMap) VARS.deref();

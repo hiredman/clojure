@@ -3540,7 +3540,6 @@ static public class FnExpr extends ObjExpr{
 	final static Type restFnType = Type.getType(RestFn.class);
 	//if there is a variadic overload (there can only be one) it is stored here
 	FnMethod variadicMethod = null;
-	IPersistentCollection methods;
 	private boolean hasPrimSigs;
 	private boolean hasMeta;
 	//	String superName = null;
@@ -3563,12 +3562,7 @@ static public class FnExpr extends ObjExpr{
 
 	protected void emitMethods(ClassVisitor cv){
 		//override of invoke/doInvoke for each method
-		for(ISeq s = RT.seq(methods); s != null; s = s.next())
-			{
-			ObjMethod method = (ObjMethod) s.first();
-			method.emit(this, cv);
-			}
-
+            super.emitMethods(cv);
 		if(isVariadic())
 			{
 			GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC,
@@ -3789,6 +3783,8 @@ static public class ObjExpr implements Expr{
 	final static Method voidctor = Method.getMethod("void <init>()");
 	protected IPersistentMap classMeta;
 	protected boolean isStatic;
+
+    	public IPersistentCollection methods;
 
 	public final String name(){
 		return name;
@@ -4264,7 +4260,14 @@ static public class ObjExpr implements Expr{
 	protected void emitStatics(ClassVisitor gen){
 	}
 
-	protected void emitMethods(ClassVisitor gen){
+	protected void emitMethods(ClassVisitor cv){
+            for(ISeq s = RT.seq(methods); s != null; s = s.next())
+                {
+                    ObjMethod method = (ObjMethod) s.first();
+                    if (DEBUG.deref() == RT.T)
+                        System.out.println("emitting "+method);
+                    method.emit(this, cv);
+                }
 	}
 
 	void emitListAsObjectArray(Object value, GeneratorAdapter gen){

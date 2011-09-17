@@ -122,7 +122,13 @@ void tryWriteLock(Ref ref){
 		throw retryex;
 		}
 }
-
+    /*
+      Transactions and Locking
+      The first transaction to write a new value to a ref will actually lock the
+      ref for writing until the transaction completes, blocking other
+      transactions from completing in the mean time. This can be somewhat
+      surprising. I assume it was done this way to reduce the risk of livelock.
+     */
 //returns the most recent val
 Object lock(Ref ref){
 	//can't upgrade readLock, so release it

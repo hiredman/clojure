@@ -10,6 +10,13 @@
 
 /* chouser Jun 23, 2010 */
 
+/*
+  clojure.lang.BigInt
+  This class exists because java.math.BigInteger doesn't hash the same as Long,
+  so there are issues building a numeric tower that seemlessly goes from Long to
+  BigInteger.
+ */
+
 package clojure.lang;
 
 import java.math.BigInteger;

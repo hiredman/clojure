@@ -28,6 +28,12 @@
 
  cons (fn* ^:static cons [x seq] (. clojure.lang.RT (cons x seq))))
 
+;; Special Forms
+;; depending on your definition while some documentation says let,
+;; loop, fn, etc are special forms, they are in fact macros that emit
+;; forms that the compiler understands like loop*, fn*, and let*
+;; See src/jvm/clojure/lang/Compiler.java
+
 ;during bootstrap we don't have destructuring let, loop or fn, will redefine later
 (def
   ^{:macro true
@@ -1805,6 +1811,12 @@
   {:added "1.0"
    :static true}
   [sym] (. clojure.lang.Var (find sym)))
+
+;; Bindings in Threadpools
+;; Clojure 1.3 conveys bindings across threads, but only in a limited
+;; sense. If you use send-off, send, or future you will get the
+;; bindings conveyed, if you fiddle with java threads yourself you are
+;; on your own.
 
 (defn binding-conveyor-fn
   {:private true

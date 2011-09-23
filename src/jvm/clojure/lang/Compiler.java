@@ -6462,7 +6462,7 @@ public static Object eval(Object form, boolean freshLoader) {
                                     /*
                                       When using eval most expressions
                                       end up getting wrapped in ((fn
-                                      [] exp)) mecause how do you emit
+                                      [] exp)) because how do you emit
                                       bytecode if you don't have a
                                       method to put it in?
                                     */

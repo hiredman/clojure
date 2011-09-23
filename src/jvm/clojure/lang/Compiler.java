@@ -6459,6 +6459,13 @@ public static Object eval(Object form, boolean freshLoader) {
 					&& !(RT.first(form) instanceof Symbol
 						&& ((Symbol) RT.first(form)).name.startsWith("def"))))
 				{
+                                    /*
+                                      When using eval most expressions
+                                      end up getting wrapped in ((fn
+                                      [] exp)) mecause how do you emit
+                                      bytecode if you don't have a
+                                      method to put it in?
+                                    */
 				ObjExpr fexpr = (ObjExpr) analyze(C.EXPRESSION, RT.list(FN, PersistentVector.EMPTY, form),
 													"eval" + RT.nextID());
 				IFn fn = (IFn) fexpr.eval();

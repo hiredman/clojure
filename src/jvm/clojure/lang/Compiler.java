@@ -1359,6 +1359,7 @@ static class InstanceMethodExpr extends MethodExpr{
 	public final int line;
 	public final Symbol tag;
 	public final java.lang.reflect.Method method;
+        public final int cacheID;
 
 	final static Method invokeInstanceMethodMethod =
 			Method.getMethod("Object invokeInstanceMethod(Object,String,Object[])");
@@ -1412,6 +1413,11 @@ static class InstanceMethodExpr extends MethodExpr{
 		      .format("Reflection warning, %s:%d - call to %s can't be resolved.\n",
 					  SOURCE_PATH.deref(), line, methodName);
 			}
+                if(method == null)
+                    this.cacheID=registerConstant(new RIC(1+RT.count(this.args), methodName));
+                else
+                    cacheID=-1;
+                    
 	}
 
 	public Object eval() {
@@ -1490,15 +1496,29 @@ static class InstanceMethodExpr extends MethodExpr{
 			}
 		else
 			{
+                        objx.emitConstant(gen, cacheID);
+			gen.checkCast(IFN_TYPE);
 			target.emit(C.EXPRESSION, objx, gen);
-			gen.push(methodName);
-			emitArgsAsArray(args, objx, gen);
-			if(context == C.RETURN)
+			//gen.push(methodName);
+			//emitArgsAsArray(args, objx, gen);
+                        for(int i = 0; i < Math.min(MAX_POSITIONAL_ARITY, args.count()); i++)
+                            {
+                                Expr e = (Expr) args.nth(i);
+                                e.emit(C.EXPRESSION, objx, gen);
+                            }
+                        
+                        if(context == C.RETURN)
 				{
 				ObjMethod method = (ObjMethod) METHOD.deref();
 				method.emitClearLocals(gen);
 				}
-			gen.invokeStatic(REFLECTOR_TYPE, invokeInstanceMethodMethod);
+
+                        gen.invokeInterface(IFN_TYPE, 
+                                            new Method("invoke", OBJECT_TYPE, 
+                                                       ARG_TYPES[Math.min(MAX_POSITIONAL_ARITY + 1,
+                                                                          1+args.count())]));
+
+			//gen.invokeStatic(REFLECTOR_TYPE, invokeInstanceMethodMethod);
 			}
 		if(context == C.STATEMENT)
 			gen.pop();

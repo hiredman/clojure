@@ -4873,6 +4873,8 @@ static public class ObjExpr implements Expr{
 				return Type.getType(ISeq.class);
 			else if(c == Keyword.class)
 				return Type.getType(Keyword.class);
+                        else if(IConstant.class.isAssignableFrom(c))
+                            return Type.getType(((IConstant)o).getConstantType());
 //			else if(c == KeywordCallSite.class)
 //				return Type.getType(KeywordCallSite.class);
 			else if(RestFn.class.isAssignableFrom(c))

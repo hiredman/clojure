@@ -33,7 +33,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[0];
 Class[] t = method.getParameterTypes();
  
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -41,10 +41,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -87,7 +87,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[0];
 System.out.println("failed cache");
@@ -126,7 +126,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[1];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -134,10 +134,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -180,7 +180,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[1];o[0] = arg1; 
 System.out.println("failed cache");
@@ -219,7 +219,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[2];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -227,10 +227,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -273,7 +273,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[2];o[0] = arg1; o[1] = arg2; 
 System.out.println("failed cache");
@@ -312,7 +312,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[3];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -320,10 +320,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -366,7 +366,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[3];o[0] = arg1; o[1] = arg2; o[2] = arg3; 
 System.out.println("failed cache");
@@ -405,7 +405,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[4];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -413,10 +413,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -459,7 +459,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[4];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; 
 System.out.println("failed cache");
@@ -498,7 +498,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[5];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -506,10 +506,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -552,7 +552,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[5];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; 
 System.out.println("failed cache");
@@ -591,7 +591,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[6];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -599,10 +599,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -645,7 +645,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[6];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; 
 System.out.println("failed cache");
@@ -684,7 +684,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[7];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -692,10 +692,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -738,7 +738,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[7];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; 
 System.out.println("failed cache");
@@ -777,7 +777,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[8];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -785,10 +785,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -831,7 +831,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[8];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; 
 System.out.println("failed cache");
@@ -870,7 +870,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[9];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -878,10 +878,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -924,7 +924,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[9];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; 
 System.out.println("failed cache");
@@ -963,7 +963,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[10];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -971,10 +971,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1017,7 +1017,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[10];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; 
 System.out.println("failed cache");
@@ -1056,7 +1056,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[11];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1064,10 +1064,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1110,7 +1110,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[11];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; 
 System.out.println("failed cache");
@@ -1149,7 +1149,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[12];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1157,10 +1157,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1203,7 +1203,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[12];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; 
 System.out.println("failed cache");
@@ -1242,7 +1242,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[13];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1250,10 +1250,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1296,7 +1296,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[13];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; 
 System.out.println("failed cache");
@@ -1335,7 +1335,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[14];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1343,10 +1343,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1389,7 +1389,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[14];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; 
 System.out.println("failed cache");
@@ -1428,7 +1428,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[15];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); o[14] = Reflector.boxArg(t[14],arg15); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1436,10 +1436,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1482,7 +1482,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[15];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; o[14] = arg15; 
 System.out.println("failed cache");
@@ -1521,7 +1521,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[16];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); o[14] = Reflector.boxArg(t[14],arg15); o[15] = Reflector.boxArg(t[15],arg16); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1529,10 +1529,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1575,7 +1575,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[16];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; o[14] = arg15; o[15] = arg16; 
 System.out.println("failed cache");
@@ -1614,7 +1614,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[17];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); o[14] = Reflector.boxArg(t[14],arg15); o[15] = Reflector.boxArg(t[15],arg16); o[16] = Reflector.boxArg(t[16],arg17); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1622,10 +1622,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1668,7 +1668,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[17];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; o[14] = arg15; o[15] = arg16; o[16] = arg17; 
 System.out.println("failed cache");
@@ -1707,7 +1707,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[18];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); o[14] = Reflector.boxArg(t[14],arg15); o[15] = Reflector.boxArg(t[15],arg16); o[16] = Reflector.boxArg(t[16],arg17); o[17] = Reflector.boxArg(t[17],arg18); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1715,10 +1715,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1761,7 +1761,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[18];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; o[14] = arg15; o[15] = arg16; o[16] = arg17; o[17] = arg18; 
 System.out.println("failed cache");
@@ -1800,7 +1800,7 @@ if (state == 0 || state == 1) {
 Object[] o = new Object[19];
 Class[] t = method.getParameterTypes();
  o[0] = Reflector.boxArg(t[0],arg1); o[1] = Reflector.boxArg(t[1],arg2); o[2] = Reflector.boxArg(t[2],arg3); o[3] = Reflector.boxArg(t[3],arg4); o[4] = Reflector.boxArg(t[4],arg5); o[5] = Reflector.boxArg(t[5],arg6); o[6] = Reflector.boxArg(t[6],arg7); o[7] = Reflector.boxArg(t[7],arg8); o[8] = Reflector.boxArg(t[8],arg9); o[9] = Reflector.boxArg(t[9],arg10); o[10] = Reflector.boxArg(t[10],arg11); o[11] = Reflector.boxArg(t[11],arg12); o[12] = Reflector.boxArg(t[12],arg13); o[13] = Reflector.boxArg(t[13],arg14); o[14] = Reflector.boxArg(t[14],arg15); o[15] = Reflector.boxArg(t[15],arg16); o[16] = Reflector.boxArg(t[16],arg17); o[17] = Reflector.boxArg(t[17],arg18); o[18] = Reflector.boxArg(t[18],arg19); 
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 
         if (r == null)
           return null;
@@ -1808,10 +1808,10 @@ Class[] t = method.getParameterTypes();
         return Reflector.prepRet(c,r);
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1854,7 +1854,7 @@ Object r = Reflector.invokeInstanceMethod(arg0, methodName, o);
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     }  Object[] o = new Object[19];o[0] = arg1; o[1] = arg2; o[2] = arg3; o[3] = arg4; o[4] = arg5; o[5] = arg6; o[6] = arg7; o[7] = arg8; o[8] = arg9; o[9] = arg10; o[10] = arg11; o[11] = arg12; o[12] = arg13; o[13] = arg14; o[14] = arg15; o[15] = arg16; o[16] = arg17; o[17] = arg18; o[18] = arg19; 
 System.out.println("failed cache");
@@ -1879,6 +1879,7 @@ super.throwArity(20);
 }return null;
 }
 }
+
 /*
 
 (let [max-arity 20
@@ -1946,14 +1947,14 @@ Class[] t = method.getParameterTypes();
 "
 arg-array
 "
-        Object r = method.invoke(arg0, Util.ret1(o,o=null));
+        Object r = method.invoke(arg0, (Object[])Util.ret1(o,o=null));
 " prep-ret "
       } catch(Exception e) {
         if(e.getCause() instanceof Exception)
-          throw Util.runtimeException(e.getCause());
+          throw Util.sneakyThrow(e.getCause());
         else if(e.getCause() instanceof Error)
           throw (Error) e.getCause();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       } finally {
         state=1;
       }
@@ -1977,7 +1978,7 @@ arg-array
         }
       } catch(Exception e) {
         e.printStackTrace();
-        throw Util.runtimeException(e);
+        throw Util.sneakyThrow(e);
       }
     } " (str " Object[] o = new Object[" (dec i) "];"
                          (apply str (for [ii (range 1 i)] ; arg array setup

@@ -50,10 +50,10 @@ public static  Method findInstanceMethod(Object target, String methodName, Objec
 	catch(Exception e)
 		{
 		if(e.getCause() instanceof Exception)
-			throw Util.runtimeException(e.getCause());
+			throw Util.sneakyThrow(e.getCause());
 		else if(e.getCause() instanceof Error)
 			throw (Error) e.getCause();
-		throw Util.runtimeException(e);
+		throw Util.sneakyThrow(e);
 		}
 }
 
@@ -105,10 +105,10 @@ public static Method findMatchingMethod(String methodName, List methods, Object 
 	catch(Exception e)
 		{
 		if(e.getCause() instanceof Exception)
-			throw Util.runtimeException(e.getCause());
+			throw Util.sneakyThrow(e.getCause());
 		else if(e.getCause() instanceof Error)
 			throw (Error) e.getCause();
-		throw Util.runtimeException(e);
+		throw Util.sneakyThrow(e);
 		}
                 }
 

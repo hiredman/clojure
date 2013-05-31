@@ -196,6 +196,7 @@ final static public Var DEFAULT_DATA_READER_FN = Var.intern(CLOJURE_NS, Symbol.i
 final static public Var DEFAULT_DATA_READERS = Var.intern(CLOJURE_NS, Symbol.intern("default-data-readers"), RT.map());
 final static public Var ASSERT = Var.intern(CLOJURE_NS, Symbol.intern("*assert*"), T).setDynamic();
 final static public Var MATH_CONTEXT = Var.intern(CLOJURE_NS, Symbol.intern("*math-context*"), null).setDynamic();
+final static public Var OBSERVE_LOCALS_CLEARING = Var.intern(CLOJURE_NS, Symbol.intern("*observe-locals-clearing*"), null).setDynamic();
 static Keyword LINE_KEY = Keyword.intern(null, "line");
 static Keyword COLUMN_KEY = Keyword.intern(null, "column");
 static Keyword FILE_KEY = Keyword.intern(null, "file");

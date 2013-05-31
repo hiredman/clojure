@@ -4769,7 +4769,18 @@ static public class ObjExpr implements Expr{
 			}
 	}
 
+    private static void clearing(LocalBinding lb){
+        if(RT.booleanCast(RT.OBSERVE_LOCALS_CLEARING.deref()))
+            System.out.println("Clearing "+lb.sym+" "+SOURCE_PATH.deref()+":"+LINE.deref()+":"+COLUMN.deref());
+    }
+
+    private static void emitting(LocalBinding lb){
+        if(RT.booleanCast(RT.OBSERVE_LOCALS_CLEARING.deref()))
+            System.out.println("Emitting "+lb.sym+" "+SOURCE_PATH.deref()+":"+LINE.deref()+":"+COLUMN.deref());
+    }
+
 	private void emitLocal(GeneratorAdapter gen, LocalBinding lb, boolean clear){
+            emitting(lb);
 		if(closes.containsKey(lb))
 			{
 			Class primc = lb.getPrimitiveType();
@@ -4783,7 +4794,8 @@ static public class ObjExpr implements Expr{
 				{
 				gen.getField(objtype, lb.name, OBJECT_TYPE);
 				if(onceOnly && clear && lb.canBeCleared)
-					{
+                                    {
+                                        clearing(lb);
 					gen.loadThis();
 					gen.visitInsn(Opcodes.ACONST_NULL);
 					gen.putField(objtype, lb.name, OBJECT_TYPE);
@@ -4805,6 +4817,7 @@ static public class ObjExpr implements Expr{
                     if(clear && lb.canBeCleared)
                         {
 //                        System.out.println("clear: " + rep);
+                            clearing(lb);
                         gen.visitInsn(Opcodes.ACONST_NULL);
                         gen.storeArg(lb.idx - argoff);
                         }
@@ -4827,6 +4840,7 @@ static public class ObjExpr implements Expr{
                     if(clear && lb.canBeCleared)
                         {
 //                        System.out.println("clear: " + rep);
+                            clearing(lb);
                         gen.visitInsn(Opcodes.ACONST_NULL);
                         gen.visitVarInsn(OBJECT_TYPE.getOpcode(Opcodes.ISTORE), lb.idx);
                         }
